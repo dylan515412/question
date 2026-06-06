@@ -38,7 +38,7 @@ const archiveQuote = document.getElementById("archiveQuote");
 const secretEgg = {
   eyebrow: "Lost Image Archive",
   symbol: "06.07",
-  title: "前海石公园失落影像档案",
+  title: "失落影像档案",
   text: "这里保存着一组没有被完整命名的照片。请依次找回三条线索，解开那天真正想留下的东西。",
 };
 
