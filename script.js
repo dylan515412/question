@@ -11,16 +11,43 @@ const secretEggEyebrow = document.getElementById("secretEggEyebrow");
 const secretEggSymbol = document.getElementById("secretEggSymbol");
 const secretEggTitle = document.getElementById("secretEggTitle");
 const secretEggText = document.getElementById("secretEggText");
+const secretEggProgress = document.getElementById("secretEggProgress");
+const secretEggProgressBar = document.getElementById("secretEggProgressBar");
+const secretEggCodeInput = document.getElementById("secretEggCodeInput");
+const secretEggCodeStatus = document.getElementById("secretEggCodeStatus");
+const secretEggAnswer = document.getElementById("secretEggAnswer");
+const secretEggPlanCta = document.getElementById("secretEggPlanCta");
+const secretEggPlan = document.getElementById("secretEggPlan");
+const secretEggConfirmPlan = document.getElementById("secretEggConfirmPlan");
+const secretEggPlanStatus = document.getElementById("secretEggPlanStatus");
+const secretClueCards = Array.from(document.querySelectorAll(".secret-clue-card"));
+const presencePill = document.getElementById("presencePill");
+const presenceText = document.getElementById("presenceText");
+const reportMonthTitle = document.getElementById("reportMonthTitle");
+const monthlyBook = document.getElementById("monthlyBook");
+const monthlyBookTitle = document.getElementById("monthlyBookTitle");
+const monthlyBookHint = document.getElementById("monthlyBookHint");
+const monthlyArchiveModal = document.getElementById("monthlyArchiveModal");
+const closeMonthlyArchive = document.getElementById("closeMonthlyArchive");
+const archiveMonthTitle = document.getElementById("archiveMonthTitle");
+const archiveSummary = document.getElementById("archiveSummary");
+const archiveStats = document.getElementById("archiveStats");
+const archiveKeywords = document.getElementById("archiveKeywords");
+const archiveQuote = document.getElementById("archiveQuote");
 
 const secretEgg = {
-  eyebrow: "Today Secret",
-  symbol: "✿",
-  title: "彩蛋",
-  text: "彩蛋还在孵化中～",
+  eyebrow: "Lost Image Archive",
+  symbol: "06.07",
+  title: "前海石公园失落影像档案",
+  text: "这里保存着一组没有被完整命名的照片。请依次找回三条线索，解开那天真正想留下的东西。",
 };
 
 const pageOrder = ["love"];
 let analysisTimer = null;
+const foundSecretClues = new Set();
+let secretEggWrongAttempts = 0;
+const secretEggAnswerCode = "前海石公园";
+const secretEggRewardKey = "qianhaiRetakePlan";
 
 if (todayDate) {
   todayDate.textContent = new Date().toLocaleDateString("zh-CN", {
@@ -35,6 +62,108 @@ function renderSecretEgg() {
   if (secretEggSymbol) secretEggSymbol.textContent = secretEgg.symbol || "✿";
   if (secretEggTitle) secretEggTitle.textContent = secretEgg.title || "今日彩蛋";
   if (secretEggText) secretEggText.textContent = secretEgg.text || "";
+  renderSecretClues();
+  renderSecretPlanReward();
+}
+
+function normalizeSecretEggCode(value) {
+  return String(value || "").replace(/\s+/g, "").trim();
+}
+
+function setSecretCodeStatus(message, type = "") {
+  if (!secretEggCodeStatus) return;
+  secretEggCodeStatus.textContent = message;
+  secretEggCodeStatus.dataset.type = type;
+}
+
+function renderSecretClues() {
+  const total = secretClueCards.length || 3;
+  const solvedCount = foundSecretClues.size;
+  secretClueCards.forEach((card, index) => {
+    const isFound = foundSecretClues.has(index);
+    const isNext = !isFound && index === solvedCount;
+    card.classList.toggle("is-found", isFound);
+    card.classList.toggle("is-next", isNext);
+    card.classList.toggle("is-locked", !isFound);
+    card.setAttribute("aria-pressed", isFound ? "true" : "false");
+    card.setAttribute("aria-label", isFound ? `已找回${card.textContent.trim()}` : `待解锁${card.textContent.trim()}`);
+  });
+  if (secretEggProgress) secretEggProgress.textContent = `已找回 ${solvedCount}/${total} 条线索`;
+  if (secretEggProgressBar) secretEggProgressBar.style.width = `${Math.min(100, (solvedCount / total) * 100)}%`;
+
+  const isSolved = solvedCount >= total;
+  if (secretEggAnswer) {
+    secretEggAnswer.hidden = !isSolved;
+    secretEggAnswer.classList.toggle("is-revealed", isSolved);
+  }
+}
+
+function tryUnlockSecretClue(index) {
+  if (foundSecretClues.has(index)) {
+    setSecretCodeStatus("这条线索已经找回了。", "ok");
+    return;
+  }
+
+  const code = normalizeSecretEggCode(secretEggCodeInput?.value);
+  if (code !== secretEggAnswerCode) {
+    secretEggWrongAttempts += 1;
+    setSecretCodeStatus(secretEggWrongAttempts >= 3 ? "输入错误。提示：野餐" : "输入错误", "error");
+    secretEggCodeInput?.focus();
+    return;
+  }
+
+  secretEggWrongAttempts = 0;
+  const expectedIndex = foundSecretClues.size;
+  if (index !== expectedIndex) {
+    setSecretCodeStatus(`请先打开线索${expectedIndex + 1}。`, "error");
+    return;
+  }
+
+  foundSecretClues.add(index);
+  renderSecretClues();
+  setSecretCodeStatus(`线索${index + 1}已找回。`, "ok");
+  if (foundSecretClues.size === secretClueCards.length && secretEggAnswer) {
+    setSecretCodeStatus("三条线索都找回了，下一步已经解锁。", "ok");
+    window.setTimeout(() => secretEggAnswer.scrollIntoView({ behavior: "smooth", block: "center" }), 180);
+  }
+}
+
+function getSecretRewardPointsTotal() {
+  return Object.values(state.secretEggRewards || {}).reduce((total, reward) => {
+    const points = Number(reward?.points || 0);
+    return total + (Number.isFinite(points) ? points : 0);
+  }, 0);
+}
+
+function renderSecretPlanReward() {
+  if (!secretEggConfirmPlan || !secretEggPlanStatus || typeof state === "undefined") return;
+  const reward = state.secretEggRewards?.[secretEggRewardKey];
+  if (reward) {
+    secretEggConfirmPlan.disabled = true;
+    secretEggConfirmPlan.textContent = "已确认 +5 分";
+    secretEggPlanStatus.textContent = "这份重拍计划已经记进积分里了。";
+    secretEggPlanStatus.dataset.type = "ok";
+  } else {
+    secretEggConfirmPlan.disabled = false;
+    secretEggConfirmPlan.textContent = "确认计划 +5 分";
+    secretEggPlanStatus.textContent = "确认之后，会把这份认真也记进积分里。";
+    secretEggPlanStatus.dataset.type = "";
+  }
+}
+
+function confirmSecretPlan() {
+  state.secretEggRewards ||= {};
+  if (state.secretEggRewards[secretEggRewardKey]) {
+    renderSecretPlanReward();
+    return;
+  }
+  state.secretEggRewards[secretEggRewardKey] = {
+    label: "前海石公园重拍计划",
+    points: 5,
+    confirmedAt: new Date().toISOString(),
+  };
+  renderDashboard();
+  renderSecretPlanReward();
 }
 
 function openSecretEgg() {
@@ -50,6 +179,24 @@ function closeSecretEggModal() {
 secretDateTrigger?.addEventListener("click", openSecretEgg);
 closeSecretEgg?.addEventListener("click", closeSecretEggModal);
 secretEggModal?.querySelector("[data-close-secret-egg]")?.addEventListener("click", closeSecretEggModal);
+secretClueCards.forEach((card, index) => {
+  card.addEventListener("click", () => {
+    tryUnlockSecretClue(index);
+  });
+});
+secretEggPlanCta?.addEventListener("click", () => {
+  if (!secretEggPlan) return;
+  secretEggPlan.hidden = false;
+  secretEggPlan.classList.add("is-revealed");
+  renderSecretPlanReward();
+  secretEggPlan.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+secretEggCodeInput?.addEventListener("input", () => {
+  if (normalizeSecretEggCode(secretEggCodeInput.value) === secretEggAnswerCode) {
+    setSecretCodeStatus("口令正确，请按顺序点击线索。", "ok");
+  }
+});
+secretEggConfirmPlan?.addEventListener("click", confirmSecretPlan);
 
 function showPage(id) {
   pages.forEach((page) => page.classList.toggle("active", page.id === id));
@@ -422,6 +569,8 @@ state.lastRedeemedAt ||= "";
 state.deletedIds ||= [];
 state.syncUpdatedAt ||= "";
 state.scoreOffset ||= 0;
+state.monthlyReports ||= {};
+state.secretEggRewards ||= {};
 
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
@@ -505,6 +654,10 @@ let cloudSaveTimer = 0;
 let cloudSaveInFlight = false;
 let cloudSaveQueued = false;
 let applyingCloudState = false;
+let archiveGenerationInFlight = false;
+const localPresenceId =
+  localStorage.getItem("love-presence-id") || `presence-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+localStorage.setItem("love-presence-id", localPresenceId);
 
 state.coverPhotos ||= [
   {
@@ -596,6 +749,9 @@ function normalizeDashboardState() {
   state.wishes ||= [];
   state.coverPhotos ||= [];
   state.deletedIds ||= [];
+  state.presence ||= {};
+  state.monthlyReports ||= {};
+  state.secretEggRewards ||= {};
   state.redeemedSurprises ||= 0;
   state.lastRedeemedAt ||= "";
   state.scoreOffset ||= Number(state.redeemedSurprises || 0) * 100;
@@ -632,9 +788,15 @@ function normalizeDashboardState() {
     photos.set(key, { ...(photos.get(key) || {}), ...photo });
     return photos;
   }, new Map()).values()];
+  Object.entries(state.presence || {}).forEach(([id, presence]) => {
+    if (!presence?.lastSeen || Date.now() - new Date(presence.lastSeen).getTime() > 2 * 60 * 1000) {
+      delete state.presence[id];
+    }
+  });
   const earnedPoints =
     state.daily.reduce((total, entry) => total + getEntryPoints(entry, "daily"), 0) +
-    state.words.reduce((total, entry) => total + getEntryPoints(entry, "words"), 0);
+    state.words.reduce((total, entry) => total + getEntryPoints(entry, "words"), 0) +
+    getSecretRewardPointsTotal();
   state.scoreOffset = Math.min(Number(state.scoreOffset || 0), earnedPoints);
   state.score = Math.max(
     0,
@@ -901,6 +1063,62 @@ function cloudHeaders(extra = {}) {
   return headers;
 }
 
+function aiHeaders(extra = {}) {
+  return cloudHeaders({
+    "Content-Type": "application/json",
+    ...extra,
+  });
+}
+
+function isLoveAIEnabled() {
+  return Boolean(syncConfig.aiEnabled && syncConfig.aiEndpoint && syncConfig.supabaseAnonKey);
+}
+
+function compactEntry(entry) {
+  return {
+    text: entry.text,
+    time: entry.time,
+    dateKey: inferDateKey(entry),
+    points: getEntryPoints(entry, entry.id?.startsWith("daily") ? "daily" : "words"),
+    hasPhoto: Boolean(entry.photo || entry.photoId),
+  };
+}
+
+function buildMemoryContext() {
+  return {
+    mood: state.mood,
+    score: state.score,
+    daily: state.daily.slice(-40).map(compactEntry),
+    words: state.words.slice(-30).map(compactEntry),
+    wishes: state.wishes.slice(-30).map((wish) => ({ text: wish.text, time: wish.time })),
+    coverPhotos: state.coverPhotos.slice(-30).map((photo) => ({
+      name: getPhotoName(photo),
+      description: getPhotoDescription(photo),
+      tags: normalizeTags(photo.tags),
+    })),
+  };
+}
+
+async function callLoveAI(task, payload = {}) {
+  if (!isLoveAIEnabled()) return null;
+  try {
+    const response = await fetch(syncConfig.aiEndpoint, {
+      method: "POST",
+      headers: aiHeaders(),
+      body: JSON.stringify({
+        task,
+        memory: buildMemoryContext(),
+        payload,
+      }),
+    });
+    if (!response.ok) throw new Error(`Love AI failed: ${response.status}`);
+    return response.json();
+  } catch (error) {
+    console.warn("Love AI unavailable; using local fallback.", error);
+    return null;
+  }
+}
+
 function dataUrlToBlob(dataUrl) {
   const [meta, data] = String(dataUrl).split(",");
   const mime = meta.match(/data:(.*?);base64/)?.[1] || "image/jpeg";
@@ -988,33 +1206,20 @@ async function prepareCloudState() {
   return snapshot;
 }
 
-function mergeByIdentity(localItems = [], remoteItems = [], prefix = "item", getKey = (item) => item.id) {
-  const map = new Map();
-
-  [...localItems, ...remoteItems].forEach((item) => {
-    if (!item) return;
-    item.id ||= createEntryId(prefix);
-    const key = getKey(item) || item.id;
-    map.set(key, { ...(map.get(key) || {}), ...item });
-  });
-
-  return [...map.values()];
-}
-
 function mergeCloudState(remoteState) {
   if (!remoteState || typeof remoteState !== "object") return false;
   const before = JSON.stringify(state);
+  const localPresence = state.presence?.[localPresenceId];
+  const nextState = JSON.parse(JSON.stringify(remoteState));
 
-  state.deletedIds = [...new Set([...(state.deletedIds || []), ...(remoteState.deletedIds || [])])];
-  state.daily = mergeByIdentity(state.daily, remoteState.daily, "daily");
-  state.words = mergeByIdentity(state.words, remoteState.words, "words");
-  state.wishes = mergeByIdentity(state.wishes, remoteState.wishes, "wish");
-  state.coverPhotos = mergeByIdentity(state.coverPhotos, remoteState.coverPhotos, "cover");
-  state.mood = remoteState.mood || state.mood;
-  state.redeemedSurprises = Math.max(Number(state.redeemedSurprises || 0), Number(remoteState.redeemedSurprises || 0));
-  state.scoreOffset = Math.max(Number(state.scoreOffset || 0), Number(remoteState.scoreOffset || 0));
-  state.lastRedeemedAt = remoteState.lastRedeemedAt || state.lastRedeemedAt;
-  state.syncUpdatedAt = remoteState.syncUpdatedAt || state.syncUpdatedAt;
+  Object.keys(state).forEach((key) => {
+    delete state[key];
+  });
+  Object.assign(state, nextState);
+  state.presence = {
+    ...(remoteState.presence || {}),
+    ...(localPresence ? { [localPresenceId]: localPresence } : {}),
+  };
 
   normalizeDashboardState();
   activeCoverIndex = Math.min(activeCoverIndex, Math.max(0, state.coverPhotos.length - 1));
@@ -1093,6 +1298,44 @@ function startCloudSyncPolling() {
     renderDashboard();
     applyingCloudState = false;
   }, Number(syncConfig.pollIntervalMs || 15000));
+}
+
+function writePresence() {
+  state.presence ||= {};
+  state.presence[localPresenceId] = {
+    lastSeen: new Date().toISOString(),
+    mood: state.mood || "",
+    page: "love",
+  };
+  saveDashboard();
+}
+
+function getOtherPresence() {
+  const now = Date.now();
+  return Object.entries(state.presence || {})
+    .filter(([id, presence]) => {
+      if (id === localPresenceId || !presence?.lastSeen) return false;
+      return now - new Date(presence.lastSeen).getTime() < 45 * 1000;
+    })
+    .map(([, presence]) => presence);
+}
+
+function updatePresenceUI() {
+  if (!presenceText) return;
+  const others = getOtherPresence();
+  const isTogether = others.length > 0;
+  presencePill?.classList.toggle("together", isTogether);
+  presenceText.textContent = isTogether ? "她也在这里" : "你在这里";
+  if (presencePill) {
+    presencePill.title = isTogether
+      ? `另一端刚刚亮起了心跳${others[0]?.mood ? `，她现在是：${others[0].mood}` : ""}。`
+      : "另一端打开网站时，这里会悄悄变亮。";
+  }
+}
+
+function startPresenceHeartbeat() {
+  writePresence();
+  window.setInterval(writePresence, Number(syncConfig.presencePollIntervalMs || 12000));
 }
 
 function imageStyle(src) {
@@ -1298,7 +1541,8 @@ function getEntryPointsForType(type, dateKey) {
 function getEarnedPointsTotal() {
   return (
     state.daily.reduce((total, entry) => total + getEntryPoints(entry, "daily"), 0) +
-    state.words.reduce((total, entry) => total + getEntryPoints(entry, "words"), 0)
+    state.words.reduce((total, entry) => total + getEntryPoints(entry, "words"), 0) +
+    getSecretRewardPointsTotal()
   );
 }
 
@@ -1431,6 +1675,250 @@ function getDateEntries(key) {
 function getTodayEntries(entries) {
   const todayKey = toDateKey(new Date());
   return entries.filter((entry) => inferDateKey(entry) === todayKey);
+}
+
+function getMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getPreviousMonthKey(date = new Date()) {
+  return getMonthKey(new Date(date.getFullYear(), date.getMonth() - 1, 1));
+}
+
+function formatMonthTitle(monthKey) {
+  const [year, month] = String(monthKey).split("-").map(Number);
+  if (!year || !month) return "上月回忆册";
+  return `${year}年${month}月回忆册`;
+}
+
+function isEntryInMonth(entry, monthKey = getMonthKey()) {
+  return inferDateKey(entry).startsWith(monthKey);
+}
+
+function getMonthlyEntries(monthKey = getMonthKey()) {
+  return {
+    daily: state.daily.filter((entry) => isEntryInMonth(entry, monthKey)),
+    words: state.words.filter((entry) => isEntryInMonth(entry, monthKey)),
+  };
+}
+
+function getMonthlyPhotos(monthKey = getMonthKey()) {
+  return state.coverPhotos.filter((photo) => {
+    if (!photo.dateKey && !photo.createdAt) return false;
+    return String(photo.dateKey || photo.createdAt).startsWith(monthKey);
+  });
+}
+
+function getMonthlyPhotoCount(monthKey = getMonthKey()) {
+  const entryPhotos = [...state.daily, ...state.words].filter(
+    (entry) => isEntryInMonth(entry, monthKey) && (entry.photo || entry.photoId)
+  ).length;
+  const coverPhotos = getMonthlyPhotos(monthKey).length;
+  return entryPhotos + coverPhotos;
+}
+
+function pickKeywords(entries) {
+  const text = entries.map((entry) => entry.text).join(" ");
+  const seeds = ["想你", "开心", "抱抱", "晚饭", "见面", "照片", "温柔", "选择", "安心", "委屈", "浪漫", "好吃"];
+  const matched = seeds.filter((word) => text.includes(word));
+  const moodKeyword = state.mood ? [state.mood] : [];
+  return [...new Set([...moodKeyword, ...matched, "回忆", "我们"])].slice(0, 6);
+}
+
+function buildLocalMonthlyReport(monthKey = getMonthKey()) {
+  const monthly = getMonthlyEntries(monthKey);
+  const photos = getMonthlyPhotos(monthKey);
+  const allEntries = [...monthly.daily, ...monthly.words];
+  const photoEntries = photos.map((photo) => ({
+    text: `${getPhotoName(photo)} ${getPhotoDescription(photo)} ${normalizeTags(photo.tags).join(" ")}`,
+    dateKey: photo.dateKey || String(photo.createdAt || "").slice(0, 10),
+  }));
+  const analyzableEntries = [...allEntries, ...photoEntries];
+  const countsByDate = analyzableEntries.reduce((map, entry) => {
+    const key = entry.dateKey || inferDateKey(entry);
+    if (!key) return map;
+    map.set(key, (map.get(key) || 0) + 1);
+    return map;
+  }, new Map());
+  const highlightKey = [...countsByDate.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+  const highlight = highlightKey ? readableDate(highlightKey).replace("星期", "周") : "等待记录";
+  const keywords = pickKeywords(analyzableEntries);
+  const quoteSource = monthly.words[monthly.words.length - 1]?.text || monthly.daily[monthly.daily.length - 1]?.text || "";
+  const memoryCount = allEntries.length + photos.length;
+  const photoCount = getMonthlyPhotoCount(monthKey);
+
+  return {
+    monthKey,
+    monthTitle: formatMonthTitle(monthKey),
+    summary: memoryCount
+      ? `这个月一共留下 ${monthly.daily.length} 条日常、${monthly.words.length} 封情书、${photoCount} 张照片线索。最明显的情绪是“${keywords[0] || "温柔"}”，这些小事已经可以装订成一本回忆册。`
+      : "这个月还没有足够可以分析的记录，等更多回忆出现后，这里会自动生成月度总结。",
+    keywords,
+    memoryCount,
+    highlight,
+    photoCount,
+    wordsCount: monthly.words.length,
+    quote: quoteSource ? `“${getLetterPreview(quoteSource, 42)}”` : "当记忆开始变多，爱就有了自己的纹理。",
+    signature: JSON.stringify({
+      daily: monthly.daily.map((entry) => `${entry.id}:${entry.text}:${entry.points}`).join("|"),
+      words: monthly.words.map((entry) => `${entry.id}:${entry.text}:${entry.points}`).join("|"),
+      photos: photos.map((photo) => `${photo.id}:${getPhotoName(photo)}:${getPhotoDescription(photo)}`).join("|"),
+    }),
+  };
+}
+
+function getActiveArchiveKey() {
+  return getPreviousMonthKey();
+}
+
+function getActiveMonthlyArchive() {
+  const key = getActiveArchiveKey();
+  return state.monthlyReports?.[key] || null;
+}
+
+function renderMonthlyArchiveBook() {
+  if (!reportMonthTitle || !monthlyBookTitle || !monthlyBookHint) return;
+  reportMonthTitle.textContent = "回忆册";
+  const archive = getActiveMonthlyArchive();
+  const previousMonthKey = getPreviousMonthKey();
+  const pendingReport = buildLocalMonthlyReport(previousMonthKey);
+  monthlyBook?.classList.toggle("has-report", Boolean(archive));
+  monthlyBookTitle.textContent = archive?.monthTitle || formatMonthTitle(previousMonthKey);
+  monthlyBookHint.textContent = archive
+    ? `${archive.memoryCount || 0} 条线索已装订`
+    : pendingReport.memoryCount
+      ? "等待大模型生成"
+      : "上个月还没有可分析记录";
+}
+
+function renderArchiveModal() {
+  const archive = getActiveMonthlyArchive();
+  if (!archiveMonthTitle || !archiveSummary || !archiveStats || !archiveKeywords || !archiveQuote) return;
+  archiveMonthTitle.textContent = archive?.monthTitle || formatMonthTitle(getPreviousMonthKey());
+  archiveSummary.textContent = archive?.summary || "每月 1 号会自动读取上个月的每日记录、情书和照片文字线索，生成一本可以回看的月度总结。";
+  archiveStats.innerHTML = "";
+  const stats = archive
+    ? [
+        ["值得分析", `${archive.memoryCount || 0} 条`],
+        ["照片线索", `${archive.photoCount || 0} 张`],
+        ["情话", `${archive.wordsCount || 0} 封`],
+        ["高光日", archive.highlight || "等待记录"],
+      ]
+    : [
+        ["生成时间", "每月 1 号"],
+        ["分析范围", "上个月"],
+        ["内容来源", "记录 / 情书 / 照片文字"],
+      ];
+  stats.forEach(([label, value]) => {
+    const item = document.createElement("article");
+    const small = document.createElement("span");
+    const strong = document.createElement("strong");
+    small.textContent = label;
+    strong.textContent = value;
+    item.append(small, strong);
+    archiveStats.appendChild(item);
+  });
+  archiveKeywords.innerHTML = "";
+  (archive?.keywords?.length ? archive.keywords : ["等待装订", "上月总结", "回忆册"]).forEach((keyword) => {
+    const item = document.createElement("span");
+    item.textContent = keyword;
+    archiveKeywords.appendChild(item);
+  });
+  archiveQuote.textContent = archive?.quote || "等第一本月报生成后，这里会留下最适合回看的那句话。";
+}
+
+function openMonthlyArchive() {
+  if (!monthlyArchiveModal) return;
+  renderArchiveModal();
+  monthlyArchiveModal.hidden = false;
+  requestAnimationFrame(() => monthlyArchiveModal.classList.add("open"));
+}
+
+function closeMonthlyArchiveModal() {
+  if (!monthlyArchiveModal) return;
+  monthlyArchiveModal.classList.remove("open");
+  window.setTimeout(() => {
+    monthlyArchiveModal.hidden = true;
+  }, 180);
+}
+
+async function saveMonthlyArchive(monthKey, report, source = "ai") {
+  state.monthlyReports ||= {};
+  state.monthlyReports[monthKey] = {
+    ...report,
+    monthKey,
+    source,
+    generatedAt: new Date().toISOString(),
+  };
+  renderMonthlyArchiveBook();
+  saveDashboard();
+}
+
+function buildMonthlyArchivePayload(monthKey, report) {
+  const monthly = getMonthlyEntries(monthKey);
+  const photos = getMonthlyPhotos(monthKey);
+  return {
+    localAnalysisSeed: report,
+    monthKey,
+    archiveMode: "previous_month",
+    monthlyRecords: {
+      daily: monthly.daily.map((entry) => ({
+        text: entry.text,
+        time: entry.time,
+        dateKey: inferDateKey(entry),
+        points: getEntryPoints(entry, "daily"),
+        hasPhoto: Boolean(entry.photo || entry.photoId),
+      })),
+      words: monthly.words.map((entry) => ({
+        text: entry.text,
+        time: entry.time,
+        dateKey: inferDateKey(entry),
+        points: getEntryPoints(entry, "words"),
+        hasPhoto: Boolean(entry.photo || entry.photoId),
+      })),
+      photos: photos.map((photo) => ({
+        name: getPhotoName(photo),
+        description: getPhotoDescription(photo),
+        tags: normalizeTags(photo.tags),
+        dateKey: photo.dateKey || String(photo.createdAt || "").slice(0, 10),
+      })),
+    },
+  };
+}
+
+async function generateMonthlyArchiveWithAI(monthKey, report) {
+  if (!isLoveAIEnabled()) return false;
+  const aiReport = await callLoveAI("monthly_report", {
+    ...buildMonthlyArchivePayload(monthKey, report),
+  });
+  if (!aiReport?.report) return false;
+  await saveMonthlyArchive(monthKey, { ...report, ...aiReport.report, monthKey, signature: report.signature }, "ai");
+  return true;
+}
+
+async function ensureMonthlyArchive(date = new Date()) {
+  if (archiveGenerationInFlight || date.getDate() !== 1) {
+    renderMonthlyArchiveBook();
+    return;
+  }
+  const monthKey = getPreviousMonthKey(date);
+  if (state.monthlyReports?.[monthKey]) {
+    renderMonthlyArchiveBook();
+    return;
+  }
+  const report = buildLocalMonthlyReport(monthKey);
+  if (!report.memoryCount) {
+    renderMonthlyArchiveBook();
+    return;
+  }
+
+  archiveGenerationInFlight = true;
+  try {
+    await generateMonthlyArchiveWithAI(monthKey, report);
+  } finally {
+    archiveGenerationInFlight = false;
+    renderMonthlyArchiveBook();
+  }
 }
 
 function getMemoryDateKeys() {
@@ -1585,6 +2073,8 @@ function renderDashboard() {
   renderCalendar();
   renderDayBundle();
   updateScore();
+  renderMonthlyArchiveBook();
+  updatePresenceUI();
   renderCoverPhotos();
   saveDashboard();
 }
@@ -1697,6 +2187,8 @@ coverPhotoInput.addEventListener("change", async () => {
       name: `新照片 ${number}`,
       description: "还没有写描述，等你补上这张照片里的故事。",
       tags: ["未分类"],
+      dateKey: toDateKey(new Date()),
+      createdAt: new Date().toISOString(),
     });
   }
 
@@ -1720,6 +2212,9 @@ coverPhotoCard.addEventListener("keydown", (event) => {
 
 closePhotoLightbox.addEventListener("click", closeLightbox);
 photoLightbox.querySelector("[data-close-lightbox]").addEventListener("click", closeLightbox);
+monthlyBook?.addEventListener("click", openMonthlyArchive);
+closeMonthlyArchive?.addEventListener("click", closeMonthlyArchiveModal);
+monthlyArchiveModal?.querySelector("[data-close-monthly-archive]")?.addEventListener("click", closeMonthlyArchiveModal);
 
 photoMetaForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -1743,6 +2238,7 @@ letterReader.querySelector("[data-close-letter]").addEventListener("click", clos
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   closeSecretEggModal();
+  closeMonthlyArchiveModal();
   closeLightbox();
   closeLetter();
 });
@@ -1791,9 +2287,13 @@ async function initDashboard() {
   syncCalendarToToday(true);
   await loadCloudState();
   renderDashboard();
+  ensureMonthlyArchive();
+  startPresenceHeartbeat();
   startCloudSyncPolling();
   setInterval(() => {
-    if (syncCalendarToToday(false)) renderDashboard();
+    if (!syncCalendarToToday(false)) return;
+    renderDashboard();
+    ensureMonthlyArchive();
   }, 60 * 1000);
 }
 
