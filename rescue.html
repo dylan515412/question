@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>回忆数据救援</title>
+    <style>
+      :root {
+        color: #5d2c36;
+        background: #fff7f9;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        padding: 22px;
+        background:
+          radial-gradient(circle at 12% 10%, rgba(255, 211, 220, 0.92), transparent 28%),
+          radial-gradient(circle at 88% 82%, rgba(190, 231, 255, 0.76), transparent 32%),
+          linear-gradient(180deg, #fffdf8, #fff7f9);
+      }
+
+      main {
+        width: min(860px, 100%);
+        margin: 0 auto;
+        padding: clamp(18px, 4vw, 34px);
+        border: 1px solid rgba(201, 59, 75, 0.14);
+        border-radius: 12px;
+        background: rgba(255, 253, 248, 0.88);
+        box-shadow: 0 24px 72px rgba(133, 62, 72, 0.14);
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        color: #c93b4b;
+        font-family: Georgia, "Times New Roman", "Songti SC", serif;
+        font-size: clamp(2rem, 8vw, 4.2rem);
+        letter-spacing: 0;
+      }
+
+      p {
+        line-height: 1.75;
+      }
+
+      .status {
+        margin: 18px 0;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: rgba(190, 231, 255, 0.38);
+        font-weight: 800;
+      }
+
+      .status.bad {
+        background: rgba(255, 211, 220, 0.62);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 18px 0;
+      }
+
+      .stats span {
+        display: grid;
+        gap: 4px;
+        padding: 12px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.62);
+        box-shadow: inset 0 0 0 1px rgba(201, 59, 75, 0.09);
+        font-size: 0.82rem;
+        font-weight: 800;
+      }
+
+      .stats b {
+        color: #c93b4b;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.8rem;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 280px;
+        box-sizing: border-box;
+        padding: 14px;
+        border: 1px solid rgba(201, 59, 75, 0.16);
+        border-radius: 10px;
+        color: #5d2c36;
+        background: rgba(255, 255, 255, 0.78);
+        font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      button,
+      a.download {
+        display: inline-grid;
+        min-height: 44px;
+        padding: 0 16px;
+        place-items: center;
+        border: 0;
+        border-radius: 999px;
+        color: #fffdf8;
+        background: linear-gradient(135deg, #c93b4b, #f1919c);
+        font: inherit;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      button.secondary {
+        color: #c93b4b;
+        background: rgba(255, 253, 248, 0.9);
+        box-shadow: inset 0 0 0 1px rgba(201, 59, 75, 0.18);
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 12px;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>Local Rescue</p>
+      <h1>回忆数据救援</h1>
+      <p>
+        这个页面只读取当前浏览器里保存的 <strong>love-dashboard</strong>，不会加载主程序，也不会连接
+        Supabase。请在曾经写过记录的同一个设备、同一个浏览器、同一个网址下打开。
+      </p>
+
+      <div class="status" id="status">正在读取本地数据...</div>
+
+      <section class="stats" aria-label="数据概览">
+        <span>每日记录 <b id="dailyCount">0</b></span>
+        <span>情话 <b id="wordsCount">0</b></span>
+        <span>心愿 <b id="wishCount">0</b></span>
+        <span>照片 <b id="photoCount">0</b></span>
+      </section>
+
+      <textarea id="output" readonly spellcheck="false"></textarea>
+
+      <div class="actions">
+        <button id="copyButton" type="button">复制数据</button>
+        <button class="secondary" id="selectButton" type="button">全选文本</button>
+        <a class="download" id="downloadLink" download="love-dashboard-rescue.json" href="#">下载 JSON</a>
+      </div>
+    </main>
+
+    <script>
+      const output = document.getElementById("output");
+      const statusBox = document.getElementById("status");
+      const copyButton = document.getElementById("copyButton");
+      const selectButton = document.getElementById("selectButton");
+      const downloadLink = document.getElementById("downloadLink");
+
+      function setCount(id, value) {
+        document.getElementById(id).textContent = String(value || 0);
+      }
+
+      function readDashboard() {
+        const raw = window.localStorage.getItem("love-dashboard") || "";
+        output.value = raw;
+
+        if (!raw) {
+          statusBox.textContent = "没有读到 love-dashboard。通常说明不是同一个网址、同一个浏览器，或这个设备没有保存过数据。";
+          statusBox.classList.add("bad");
+          downloadLink.removeAttribute("href");
+          return;
+        }
+
+        try {
+          const data = JSON.parse(raw);
+          setCount("dailyCount", data.daily?.length);
+          setCount("wordsCount", data.words?.length);
+          setCount("wishCount", data.wishes?.length);
+          setCount("photoCount", data.coverPhotos?.length);
+          statusBox.textContent = "已经读到本地数据。请先复制或下载，再发给我恢复到 Supabase。";
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+          downloadLink.href = URL.createObjectURL(blob);
+        } catch (error) {
+          statusBox.textContent = "读到了内容，但不是标准 JSON。请复制下面全部内容发给我。";
+          statusBox.classList.add("bad");
+          downloadLink.removeAttribute("href");
+        }
+      }
+
+      copyButton.addEventListener("click", async () => {
+        output.focus();
+        output.select();
+        try {
+          await navigator.clipboard.writeText(output.value);
+          statusBox.textContent = "已复制。现在可以粘贴到备忘录，或发给我恢复。";
+        } catch (error) {
+          document.execCommand("copy");
+          statusBox.textContent = "如果没有自动复制，请点“全选文本”后手动复制。";
+        }
+      });
+
+      selectButton.addEventListener("click", () => {
+        output.focus();
+        output.select();
+      });
+
+      readDashboard();
+    </script>
+  </body>
+</html>
