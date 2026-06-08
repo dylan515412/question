@@ -650,12 +650,13 @@ let activePhotoTag = "全部";
 let typewriterTimer = 0;
 let photoDbPromise = null;
 const syncConfig = window.LOVE_SYNC_CONFIG || {};
+const localDashboardBackupKey = "love-dashboard-backups";
 let cloudSaveTimer = 0;
 let cloudSaveInFlight = false;
 let cloudSaveQueued = false;
 let applyingCloudState = false;
 let cloudReadyForWrites = !isCloudSyncEnabled();
-let lastKnownCloudHadMemories = false;
+let lastLocalBackupSignature = "";
 let archiveGenerationInFlight = false;
 const localPresenceId =
   localStorage.getItem("love-presence-id") || `presence-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -816,7 +817,8 @@ function hasMeaningfulDashboardData(dashboard = state) {
     return src && src !== "./assets/our-photo.jpeg";
   });
   return Boolean(
-    dashboard.daily?.length ||
+    Number(dashboard.score || 0) > 0 ||
+      dashboard.daily?.length ||
       dashboard.words?.length ||
       dashboard.wishes?.length ||
       (dashboard.secretEggRewards && Object.keys(dashboard.secretEggRewards).length) ||
@@ -825,7 +827,94 @@ function hasMeaningfulDashboardData(dashboard = state) {
   );
 }
 
+function compactImageValue(value) {
+  const text = String(value || "");
+  return text.startsWith("data:") ? "" : value;
+}
+
+function compactDashboardForLocalBackup(dashboard) {
+  const copy = JSON.parse(JSON.stringify(dashboard || {}));
+  delete copy.presence;
+  delete copy.syncUpdatedAt;
+  copy.daily = (copy.daily || []).map((entry) => ({ ...entry, photo: compactImageValue(entry.photo) }));
+  copy.words = (copy.words || []).map((entry) => ({ ...entry, photo: compactImageValue(entry.photo) }));
+  copy.coverPhotos = (copy.coverPhotos || []).map((photo) => ({ ...photo, src: compactImageValue(photo.src) }));
+  return copy;
+}
+
+function getDashboardBackupSignature(dashboard = state) {
+  const compact = compactDashboardForLocalBackup(dashboard);
+  return JSON.stringify({
+    daily: compact.daily?.map((entry) => [entry.id, entry.dateKey, entry.text, entry.points, entry.photo || entry.photoId]),
+    words: compact.words?.map((entry) => [entry.id, entry.dateKey, entry.text, entry.points, entry.photo || entry.photoId]),
+    wishes: compact.wishes?.map((wish) => [wish.id, wish.text, wish.done]),
+    coverPhotos: compact.coverPhotos?.map((photo) => [photo.id, photo.src || photo.photoId, photo.name, photo.description, photo.tags]),
+    scoreOffset: compact.scoreOffset,
+    redeemedSurprises: compact.redeemedSurprises,
+    lastRedeemedAt: compact.lastRedeemedAt,
+    secretEggRewards: compact.secretEggRewards,
+    monthlyReports: compact.monthlyReports,
+  });
+}
+
+function readLocalDashboardBackups() {
+  try {
+    const backups = JSON.parse(localStorage.getItem(localDashboardBackupKey) || "[]");
+    return Array.isArray(backups) ? backups.filter((backup) => backup?.data) : [];
+  } catch (error) {
+    console.warn("Local dashboard backup read failed.", error);
+    return [];
+  }
+}
+
+function writeLocalDashboardBackups(backups) {
+  try {
+    localStorage.setItem(localDashboardBackupKey, JSON.stringify(backups));
+    return true;
+  } catch (error) {
+    console.warn("Full local dashboard backup failed; trying compact backup.", error);
+    try {
+      const compactBackups = backups
+        .slice(0, 8)
+        .map((backup) => ({ ...backup, data: compactDashboardForLocalBackup(backup.data) }));
+      localStorage.setItem(localDashboardBackupKey, JSON.stringify(compactBackups));
+      return true;
+    } catch (compactError) {
+      console.warn("Compact local dashboard backup failed.", compactError);
+      return false;
+    }
+  }
+}
+
+function storeLocalDashboardBackup(reason = "local-save") {
+  if (!hasMeaningfulDashboardData(state)) return;
+
+  const signature = getDashboardBackupSignature(state);
+  if (signature === lastLocalBackupSignature) return;
+
+  const backups = readLocalDashboardBackups();
+  if (backups[0]?.signature === signature) {
+    lastLocalBackupSignature = signature;
+    return;
+  }
+
+  const backup = {
+    createdAt: new Date().toISOString(),
+    reason,
+    signature,
+    score: state.score,
+    dailyCount: state.daily?.length || 0,
+    wordsCount: state.words?.length || 0,
+    wishCount: state.wishes?.length || 0,
+    photoCount: state.coverPhotos?.length || 0,
+    data: JSON.parse(JSON.stringify(state)),
+  };
+  const nextBackups = [backup, ...backups.filter((item) => item.signature !== signature)].slice(0, 12);
+  if (writeLocalDashboardBackups(nextBackups)) lastLocalBackupSignature = signature;
+}
+
 function saveDashboard() {
+  storeLocalDashboardBackup();
   state.syncUpdatedAt = new Date().toISOString();
   localStorage.setItem("love-dashboard", JSON.stringify(state));
   if (!applyingCloudState && cloudReadyForWrites) scheduleCloudSave();
@@ -1262,13 +1351,6 @@ async function loadCloudState() {
   try {
     const remoteState = await fetchCloudState();
     cloudReadyForWrites = true;
-    const remoteHasMemories = hasMeaningfulDashboardData(remoteState);
-    const localHasMemories = hasMeaningfulDashboardData(state);
-    lastKnownCloudHadMemories = remoteHasMemories;
-    if (!remoteHasMemories && localHasMemories) {
-      console.warn("Skipped empty cloud state because local memories still exist.");
-      return false;
-    }
     return mergeCloudState(remoteState);
   } catch (error) {
     cloudReadyForWrites = false;
@@ -1287,8 +1369,8 @@ async function saveCloudState() {
 
   try {
     const snapshot = await prepareCloudState();
-    if (!hasMeaningfulDashboardData(snapshot) && lastKnownCloudHadMemories) {
-      console.warn("Skipped cloud save because an empty local snapshot would overwrite existing memories.");
+    if (!hasMeaningfulDashboardData(snapshot)) {
+      console.warn("Skipped cloud save because empty snapshots are not allowed to replace cloud data.");
       return;
     }
     const response = await fetch(`${cloudBaseUrl()}/rest/v1/${cloudTableName()}?on_conflict=id`, {
@@ -1304,7 +1386,6 @@ async function saveCloudState() {
       }),
     });
     if (!response.ok) throw new Error(`Cloud state save failed: ${response.status}`);
-    lastKnownCloudHadMemories = hasMeaningfulDashboardData(snapshot);
   } catch (error) {
     console.warn("Cloud state save failed.", error);
   } finally {
