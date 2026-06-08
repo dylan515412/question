@@ -654,6 +654,8 @@ let cloudSaveTimer = 0;
 let cloudSaveInFlight = false;
 let cloudSaveQueued = false;
 let applyingCloudState = false;
+let cloudReadyForWrites = !isCloudSyncEnabled();
+let lastKnownCloudHadMemories = false;
 let archiveGenerationInFlight = false;
 const localPresenceId =
   localStorage.getItem("love-presence-id") || `presence-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -806,10 +808,27 @@ function normalizeDashboardState() {
 
 normalizeDashboardState();
 
+function hasMeaningfulDashboardData(dashboard = state) {
+  if (!dashboard || typeof dashboard !== "object") return false;
+  const coverPhotos = Array.isArray(dashboard.coverPhotos) ? dashboard.coverPhotos : [];
+  const hasCustomCover = coverPhotos.some((photo) => {
+    const src = String(photo?.src || "");
+    return src && src !== "./assets/our-photo.jpeg";
+  });
+  return Boolean(
+    dashboard.daily?.length ||
+      dashboard.words?.length ||
+      dashboard.wishes?.length ||
+      (dashboard.secretEggRewards && Object.keys(dashboard.secretEggRewards).length) ||
+      (dashboard.monthlyReports && Object.keys(dashboard.monthlyReports).length) ||
+      hasCustomCover
+  );
+}
+
 function saveDashboard() {
   state.syncUpdatedAt = new Date().toISOString();
   localStorage.setItem("love-dashboard", JSON.stringify(state));
-  if (!applyingCloudState) scheduleCloudSave();
+  if (!applyingCloudState && cloudReadyForWrites) scheduleCloudSave();
 }
 
 function setBouncyNumber(element, value) {
@@ -1242,8 +1261,17 @@ async function loadCloudState() {
   if (!isCloudSyncEnabled()) return false;
   try {
     const remoteState = await fetchCloudState();
+    cloudReadyForWrites = true;
+    const remoteHasMemories = hasMeaningfulDashboardData(remoteState);
+    const localHasMemories = hasMeaningfulDashboardData(state);
+    lastKnownCloudHadMemories = remoteHasMemories;
+    if (!remoteHasMemories && localHasMemories) {
+      console.warn("Skipped empty cloud state because local memories still exist.");
+      return false;
+    }
     return mergeCloudState(remoteState);
   } catch (error) {
+    cloudReadyForWrites = false;
     console.warn("Cloud state load failed.", error);
     return false;
   }
@@ -1259,6 +1287,10 @@ async function saveCloudState() {
 
   try {
     const snapshot = await prepareCloudState();
+    if (!hasMeaningfulDashboardData(snapshot) && lastKnownCloudHadMemories) {
+      console.warn("Skipped cloud save because an empty local snapshot would overwrite existing memories.");
+      return;
+    }
     const response = await fetch(`${cloudBaseUrl()}/rest/v1/${cloudTableName()}?on_conflict=id`, {
       method: "POST",
       headers: cloudHeaders({
@@ -1272,6 +1304,7 @@ async function saveCloudState() {
       }),
     });
     if (!response.ok) throw new Error(`Cloud state save failed: ${response.status}`);
+    lastKnownCloudHadMemories = hasMeaningfulDashboardData(snapshot);
   } catch (error) {
     console.warn("Cloud state save failed.", error);
   } finally {
