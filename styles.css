@@ -3695,42 +3695,14 @@ button {
   transform: translateX(-50%) rotate(-2deg);
 }
 
-.secret-archive-head {
-  display: grid;
-  grid-template-columns: 114px minmax(0, 1fr);
-  gap: clamp(16px, 3vw, 28px);
-  align-items: center;
-  margin-bottom: 18px;
+.qr-egg-card {
+  width: min(430px, 100%);
+  max-height: calc(100vh - 44px);
+  text-align: center;
 }
 
-.secret-egg-symbol {
-  position: relative;
-  display: grid;
-  width: 104px;
-  height: 132px;
-  place-items: end center;
-  padding: 0 10px 18px;
-  border: 1px solid rgba(201, 59, 75, 0.16);
-  border-radius: 6px;
-  color: rgba(201, 59, 75, 0.84);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 247, 249, 0.76)),
-    repeating-linear-gradient(90deg, transparent 0 10px, rgba(201, 59, 75, 0.08) 11px 12px);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.35rem;
-  font-weight: 900;
-  line-height: 1;
-  box-shadow: 0 18px 42px rgba(201, 59, 75, 0.12);
-  animation: secretFlowerFloat 3.8s ease-in-out infinite;
-}
-
-.secret-egg-symbol::before {
-  content: "ARCHIVE";
-  position: absolute;
-  margin-bottom: 74px;
-  color: rgba(78, 45, 54, 0.34);
-  font-size: 0.58rem;
-  letter-spacing: 0.18em;
+.qr-egg-card .panel-eyebrow {
+  justify-content: center;
 }
 
 .secret-egg-card h3 {
@@ -3746,336 +3718,60 @@ button {
   line-height: 1.8;
 }
 
-.secret-archive-head p:not(.panel-eyebrow) {
-  max-width: 680px;
-  margin: 0;
-}
-
-.secret-archive-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.secret-archive-meta span {
-  padding: 7px 10px;
-  border: 1px solid rgba(201, 59, 75, 0.12);
-  border-radius: 999px;
-  color: rgba(78, 45, 54, 0.72);
-  background: rgba(255, 253, 248, 0.72);
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
-.secret-clue-progress {
-  display: grid;
-  gap: 9px;
-  margin: 18px 0 20px;
-  color: rgba(78, 45, 54, 0.58);
-  font-size: 0.86rem;
-  font-weight: 900;
-}
-
-.secret-progress-track {
-  height: 9px;
-  overflow: hidden;
-  border: 1px solid rgba(201, 59, 75, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 253, 248, 0.72);
-}
-
-.secret-progress-track i {
-  display: block;
-  width: 0;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #bee7ff, #ffd3dc, #c93b4b);
-  transition: width 0.42s ease;
-}
-
-.secret-clue-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.secret-clue-card {
+.secret-qr-frame {
   position: relative;
   display: grid;
-  gap: 8px;
-  align-content: center;
-  min-height: 108px;
-  padding: 10px 10px 14px;
+  gap: 14px;
+  margin: 18px auto 0;
+  padding: 18px 18px 16px;
   border: 1px solid rgba(201, 59, 75, 0.12);
   border-radius: 8px;
-  color: #5d2c36;
   background:
-    linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 247, 249, 0.78));
-  box-shadow: 0 18px 38px rgba(133, 62, 72, 0.1);
-  text-align: left;
-  cursor: pointer;
-  transform: rotate(var(--tilt, -1deg));
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    radial-gradient(circle at 18% 14%, rgba(190, 231, 255, 0.42), transparent 34%),
+    linear-gradient(180deg, rgba(255, 253, 248, 0.94), rgba(255, 247, 249, 0.86));
+  box-shadow: 0 22px 52px rgba(133, 62, 72, 0.12);
 }
 
-.secret-clue-card:nth-child(2) {
-  --tilt: 1.2deg;
-}
-
-.secret-clue-card:nth-child(3) {
-  --tilt: -0.4deg;
-}
-
-.secret-clue-card::before {
+.secret-qr-frame::before,
+.secret-qr-frame::after {
   content: "";
   position: absolute;
-  left: 50%;
-  top: -8px;
-  width: 72px;
-  height: 19px;
+  width: 70px;
+  height: 20px;
   border-radius: 3px;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.52), rgba(190, 231, 255, 0.7)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.42), rgba(190, 231, 255, 0.72)),
     repeating-linear-gradient(45deg, transparent 0 8px, rgba(201, 59, 75, 0.08) 9px 10px);
-  transform: translateX(-50%) rotate(-2deg);
 }
 
-.secret-clue-card:hover,
-.secret-clue-card.is-found {
-  border-color: rgba(201, 59, 75, 0.28);
-  box-shadow: 0 22px 48px rgba(133, 62, 72, 0.16);
-  transform: translateY(-4px) rotate(0deg);
+.secret-qr-frame::before {
+  left: 20px;
+  top: -8px;
+  transform: rotate(-5deg);
 }
 
-.secret-clue-card.is-found::after {
-  content: "FOUND";
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  padding: 5px 7px;
-  border-radius: 999px;
-  color: #fffdf8;
-  background: rgba(201, 59, 75, 0.86);
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+.secret-qr-frame::after {
+  right: 20px;
+  bottom: -8px;
+  transform: rotate(4deg);
 }
 
-.secret-clue-card img {
-  display: none;
-  width: 100%;
-  height: clamp(180px, 24vw, 260px);
-  object-fit: cover;
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1px rgba(255, 253, 248, 0.45);
-}
-
-.secret-clue-card span {
-  color: rgba(201, 59, 75, 0.72);
-  font-family: Georgia, "Times New Roman", "Songti SC", serif;
-  font-size: 1.1rem;
-  font-weight: 900;
-  letter-spacing: 0;
-}
-
-.secret-clue-card strong {
-  color: #5d2c36;
-  font-family: Georgia, "Times New Roman", "Songti SC", serif;
-  font-size: 1.26rem;
-}
-
-.secret-clue-card small {
-  display: none;
-  color: rgba(78, 45, 54, 0.64);
-  font-weight: 800;
-  line-height: 1.7;
-}
-
-.secret-clue-card.is-next:not(.is-found) {
-  background:
-    radial-gradient(circle at 86% 20%, rgba(190, 231, 255, 0.54), transparent 32%),
-    linear-gradient(180deg, rgba(255, 253, 248, 0.96), rgba(255, 247, 249, 0.8));
-}
-
-.secret-clue-card.is-found {
-  align-content: start;
-  min-height: auto;
-}
-
-.secret-clue-card.is-found img,
-.secret-clue-card.is-found small {
+.secret-qr-frame img {
   display: block;
-}
-
-.secret-clue-unlock {
-  display: grid;
-  grid-template-columns: auto minmax(220px, 1fr);
-  gap: 10px 12px;
-  align-items: center;
-  margin-top: 16px;
-  padding: 14px;
-  border: 1px dashed rgba(201, 59, 75, 0.2);
+  width: min(280px, 70vw);
+  aspect-ratio: 1;
+  margin: 0 auto;
   border-radius: 8px;
-  background:
-    radial-gradient(circle at 12% 20%, rgba(255, 211, 220, 0.36), transparent 36%),
-    rgba(255, 253, 248, 0.62);
+  background: #fff;
+  object-fit: cover;
+  box-shadow: 0 14px 32px rgba(78, 45, 54, 0.13);
 }
 
-.secret-clue-unlock label {
-  color: rgba(201, 59, 75, 0.82);
-  font-size: 0.82rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.secret-clue-unlock input {
-  width: 100%;
-  min-height: 42px;
-  padding: 0 13px;
-  border: 1px solid rgba(201, 59, 75, 0.16);
-  border-radius: 8px;
-  color: #5d2c36;
-  background: rgba(255, 253, 248, 0.86);
-  font: inherit;
-  font-weight: 800;
-  outline: none;
-}
-
-.secret-clue-unlock input:focus {
-  border-color: rgba(201, 59, 75, 0.36);
-  box-shadow: 0 0 0 4px rgba(255, 211, 220, 0.32);
-}
-
-.secret-clue-unlock p {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: rgba(78, 45, 54, 0.56);
-  font-size: 0.86rem;
-  font-weight: 900;
-}
-
-.secret-clue-unlock p[data-type="error"] {
-  color: #c93b4b;
-}
-
-.secret-clue-unlock p[data-type="ok"] {
-  color: #4a92b8;
-}
-
-.secret-egg-answer,
-.secret-plan-card {
-  margin-top: 18px;
-  padding: clamp(18px, 3vw, 26px);
-  border: 1px solid rgba(201, 59, 75, 0.14);
-  border-radius: 8px;
-  background:
-    linear-gradient(90deg, rgba(201, 59, 75, 0.06) 0 1px, transparent 1px 100%),
-    linear-gradient(180deg, rgba(255, 253, 248, 0.9), rgba(255, 246, 248, 0.82));
-  box-shadow: 0 20px 48px rgba(133, 62, 72, 0.1);
-}
-
-.secret-egg-answer[hidden],
-.secret-plan-card[hidden] {
-  display: none;
-}
-
-.secret-egg-answer.is-revealed,
-.secret-plan-card.is-revealed {
-  animation: memoryReveal 0.42s ease both;
-}
-
-.secret-egg-answer h4,
-.secret-plan-card h4 {
-  margin: 0 0 8px;
-  color: #c93b4b;
-  font-family: Georgia, "Times New Roman", "Songti SC", serif;
-  font-size: clamp(1.25rem, 2.4vw, 1.8rem);
-}
-
-.secret-answer-letter {
-  display: grid;
-  gap: 10px;
-  margin: 16px 0 18px;
-  padding: 18px;
-  border-radius: 8px;
-  background:
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(93, 172, 213, 0.055) 32px 33px),
-    rgba(255, 253, 248, 0.76);
-}
-
-.secret-answer-letter p {
-  margin: 0;
-}
-
-.secret-plan-button {
-  display: inline-grid;
-  min-height: 46px;
-  padding: 0 18px;
-  place-items: center;
-  border: 0;
-  border-radius: 999px;
-  color: #fffdf8;
-  background: linear-gradient(135deg, #c93b4b, #f1919c);
-  box-shadow: 0 16px 34px rgba(201, 59, 75, 0.24);
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.secret-plan-card ul {
-  display: grid;
-  gap: 10px;
-  margin: 16px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.secret-plan-card li {
-  display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-  padding: 11px 12px;
-  border-radius: 8px;
-  background: rgba(255, 253, 248, 0.66);
-}
-
-.secret-plan-card li span {
-  color: rgba(201, 59, 75, 0.72);
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
-.secret-plan-card li b {
-  color: #5d2c36;
-  font-weight: 900;
-  line-height: 1.55;
-}
-
-.secret-plan-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 12px;
-  align-items: center;
-  margin-top: 16px;
-}
-
-.secret-plan-button:disabled {
-  cursor: default;
-  opacity: 0.72;
-  box-shadow: none;
-}
-
-.secret-plan-actions p {
-  margin: 0;
+.secret-qr-frame figcaption {
   color: rgba(78, 45, 54, 0.58);
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   font-weight: 900;
-}
-
-.secret-plan-actions p[data-type="ok"] {
-  color: #4a92b8;
+  line-height: 1.7;
 }
 
 .monthly-archive-modal {
@@ -5786,41 +5482,8 @@ button {
     padding: 18px;
   }
 
-  .secret-archive-head {
-    grid-template-columns: 1fr;
-    text-align: left;
-  }
-
-  .secret-egg-symbol {
-    width: 86px;
-    height: 104px;
-    padding-bottom: 14px;
-    font-size: 1.08rem;
-  }
-
-  .secret-egg-symbol::before {
-    margin-bottom: 58px;
-  }
-
-  .secret-clue-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .secret-clue-card {
-    transform: none;
-  }
-
-  .secret-clue-card img {
-    height: min(76vw, 360px);
-  }
-
-  .secret-clue-unlock {
-    grid-template-columns: 1fr;
-  }
-
-  .secret-plan-card li {
-    grid-template-columns: 1fr;
-    gap: 5px;
+  .secret-qr-frame {
+    padding: 14px;
   }
 
   .love-only .scrapbook-meta {
