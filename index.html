@@ -240,76 +240,15 @@ AI 可以模拟浪漫，模拟陪伴，模拟一个永远正确的爱人。可�
 
           <div class="secret-egg-modal" id="secretEggModal" hidden role="dialog" aria-modal="true" aria-label="今日彩蛋">
             <div class="secret-egg-backdrop" data-close-secret-egg></div>
-            <article class="secret-egg-card qianhai-archive">
+            <article class="secret-egg-card qr-egg-card">
               <button class="icon-close" id="closeSecretEgg" type="button" aria-label="关闭今日彩蛋">×</button>
-              <div class="secret-archive-head">
-                <p class="panel-eyebrow" id="secretEggEyebrow">Lost Image Archive</p>
-                <div class="secret-egg-symbol" id="secretEggSymbol" aria-hidden="true">06.07</div>
-                <div>
-                  <h3 id="secretEggTitle">失落影像档案</h3>
-                  <p id="secretEggText">这里保存着一组没有被完整命名的照片。请依次找回三条线索，解开那天真正想留下的东西。</p>
-                  <div class="secret-archive-meta" aria-label="彩蛋信息">
-                    <span>园</span>
-                    <span>野</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="secret-clue-progress" aria-live="polite">
-                <span id="secretEggProgress">已找回 0/3 条线索</span>
-                <div class="secret-progress-track"><i id="secretEggProgressBar"></i></div>
-              </div>
-
-              <div class="secret-clue-grid" id="secretEggClueList" aria-label="影像线索">
-                <button class="secret-clue-card" type="button" data-clue-index="0">
-                  <span>线索一：阳光</span>
-                  <img src="assets/qianhai-archive-sun-display.jpeg" alt="前海石公园阳光下的照片" />
-                  <small>那天的光很好，像把所有普通的瞬间都照得很认真。</small>
-                </button>
-                <button class="secret-clue-card" type="button" data-clue-index="1">
-                  <span>线索二：海风</span>
-                  <img src="assets/qianhai-archive-wind-display.jpeg" alt="前海石公园海边的照片" />
-                  <small>风从海面吹过来，把头发吹乱，也把一些话吹到了很久以后。</small>
-                </button>
-                <button class="secret-clue-card" type="button" data-clue-index="2">
-                  <span>线索三：草地</span>
-                  <img src="assets/qianhai-archive-grass-display.jpeg" alt="前海石公园草地上的照片" />
-                  <small>有些回忆不是完美的，但它们会在时间里慢慢变软。</small>
-                </button>
-              </div>
-
-              <div class="secret-clue-unlock">
-                <label for="secretEggCodeInput">档案口令</label>
-                <input id="secretEggCodeInput" type="text" autocomplete="off" placeholder="输入答案后，再按顺序点击线索" />
-                <p id="secretEggCodeStatus">输入正确答案后，依次点击三条线索。</p>
-              </div>
-
-              <section class="secret-egg-answer" id="secretEggAnswer" hidden>
-                <p class="panel-eyebrow">Archive Solved</p>
-                <div class="secret-answer-letter">
-                  <p>去年今天，我们在前海石公园留下了一些照片。</p>
-                  <p>后来我才慢慢明白，一张照片真正重要的地方，不只是构图有多完美，也不是滤镜有多好看。</p>
-                  <p>它更像是一种证据：证明那一刻，我真的把你放在眼里，也把那天放进了心里。</p>
-                  <p>所以今天这个彩蛋，不是为了翻出那一点点不开心，而是想把那天重新放进阳光里。</p>
-                  <p>从现在开始，我想把你拍进更多好看的风里，也想把我们认真生活过的每一天，都好好留下来。</p>
-                </div>
-                <button class="secret-plan-button" id="secretEggPlanCta" type="button">开启重拍计划</button>
-              </section>
-
-              <section class="secret-plan-card" id="secretEggPlan" hidden>
-                <p class="panel-eyebrow">Retake Plan</p>
-                <h4>前海石公园重拍计划</h4>
-                <ul>
-                  <li><span>地点</span><b>前海石公园</b></li>
-                  <li><span>任务</span><b>重新拍一组属于我们的照片</b></li>
-                  <li><span>要求</span><b>找到好看的光，多拍几张，拍完先给你挑</b></li>
-                  <li><span>隐藏目标</span><b>把去年那一点点遗憾，变成今年很漂亮的一天</b></li>
-                </ul>
-                <div class="secret-plan-actions">
-                  <button class="secret-plan-button" id="secretEggConfirmPlan" type="button">确认计划 +5 分</button>
-                  <p id="secretEggPlanStatus">确认之后，会把这份认真也记进积分里。</p>
-                </div>
-              </section>
+              <p class="panel-eyebrow">Secret Gate</p>
+              <h3>彩蛋</h3>
+              <p>扫一下，会到一个看起来什么都没有的地方。</p>
+              <figure class="secret-qr-frame">
+                <img src="assets/secret-qr.png" alt="隐藏网页二维码" />
+                <figcaption>有些话，要绕一点路才更像秘密。</figcaption>
+              </figure>
             </article>
           </div>
 
