@@ -7,20 +7,6 @@ const todayDate = document.getElementById("todayDate");
 const secretDateTrigger = document.getElementById("secretDateTrigger");
 const secretEggModal = document.getElementById("secretEggModal");
 const closeSecretEgg = document.getElementById("closeSecretEgg");
-const secretEggEyebrow = document.getElementById("secretEggEyebrow");
-const secretEggSymbol = document.getElementById("secretEggSymbol");
-const secretEggTitle = document.getElementById("secretEggTitle");
-const secretEggText = document.getElementById("secretEggText");
-const secretEggProgress = document.getElementById("secretEggProgress");
-const secretEggProgressBar = document.getElementById("secretEggProgressBar");
-const secretEggCodeInput = document.getElementById("secretEggCodeInput");
-const secretEggCodeStatus = document.getElementById("secretEggCodeStatus");
-const secretEggAnswer = document.getElementById("secretEggAnswer");
-const secretEggPlanCta = document.getElementById("secretEggPlanCta");
-const secretEggPlan = document.getElementById("secretEggPlan");
-const secretEggConfirmPlan = document.getElementById("secretEggConfirmPlan");
-const secretEggPlanStatus = document.getElementById("secretEggPlanStatus");
-const secretClueCards = Array.from(document.querySelectorAll(".secret-clue-card"));
 const presencePill = document.getElementById("presencePill");
 const presenceText = document.getElementById("presenceText");
 const reportMonthTitle = document.getElementById("reportMonthTitle");
@@ -35,19 +21,8 @@ const archiveStats = document.getElementById("archiveStats");
 const archiveKeywords = document.getElementById("archiveKeywords");
 const archiveQuote = document.getElementById("archiveQuote");
 
-const secretEgg = {
-  eyebrow: "Lost Image Archive",
-  symbol: "06.07",
-  title: "失落影像档案",
-  text: "这里保存着一组没有被完整命名的照片。请依次找回三条线索，解开那天真正想留下的东西。",
-};
-
 const pageOrder = ["love"];
 let analysisTimer = null;
-const foundSecretClues = new Set();
-let secretEggWrongAttempts = 0;
-const secretEggAnswerCode = "前海石公园";
-const secretEggRewardKey = "qianhaiRetakePlan";
 
 if (todayDate) {
   todayDate.textContent = new Date().toLocaleDateString("zh-CN", {
@@ -57,77 +32,6 @@ if (todayDate) {
   });
 }
 
-function renderSecretEgg() {
-  if (secretEggEyebrow) secretEggEyebrow.textContent = secretEgg.eyebrow || "Today Secret";
-  if (secretEggSymbol) secretEggSymbol.textContent = secretEgg.symbol || "✿";
-  if (secretEggTitle) secretEggTitle.textContent = secretEgg.title || "今日彩蛋";
-  if (secretEggText) secretEggText.textContent = secretEgg.text || "";
-  renderSecretClues();
-  renderSecretPlanReward();
-}
-
-function normalizeSecretEggCode(value) {
-  return String(value || "").replace(/\s+/g, "").trim();
-}
-
-function setSecretCodeStatus(message, type = "") {
-  if (!secretEggCodeStatus) return;
-  secretEggCodeStatus.textContent = message;
-  secretEggCodeStatus.dataset.type = type;
-}
-
-function renderSecretClues() {
-  const total = secretClueCards.length || 3;
-  const solvedCount = foundSecretClues.size;
-  secretClueCards.forEach((card, index) => {
-    const isFound = foundSecretClues.has(index);
-    const isNext = !isFound && index === solvedCount;
-    card.classList.toggle("is-found", isFound);
-    card.classList.toggle("is-next", isNext);
-    card.classList.toggle("is-locked", !isFound);
-    card.setAttribute("aria-pressed", isFound ? "true" : "false");
-    card.setAttribute("aria-label", isFound ? `已找回${card.textContent.trim()}` : `待解锁${card.textContent.trim()}`);
-  });
-  if (secretEggProgress) secretEggProgress.textContent = `已找回 ${solvedCount}/${total} 条线索`;
-  if (secretEggProgressBar) secretEggProgressBar.style.width = `${Math.min(100, (solvedCount / total) * 100)}%`;
-
-  const isSolved = solvedCount >= total;
-  if (secretEggAnswer) {
-    secretEggAnswer.hidden = !isSolved;
-    secretEggAnswer.classList.toggle("is-revealed", isSolved);
-  }
-}
-
-function tryUnlockSecretClue(index) {
-  if (foundSecretClues.has(index)) {
-    setSecretCodeStatus("这条线索已经找回了。", "ok");
-    return;
-  }
-
-  const code = normalizeSecretEggCode(secretEggCodeInput?.value);
-  if (code !== secretEggAnswerCode) {
-    secretEggWrongAttempts += 1;
-    setSecretCodeStatus(secretEggWrongAttempts >= 3 ? "输入错误。提示：野餐" : "输入错误", "error");
-    secretEggCodeInput?.focus();
-    return;
-  }
-
-  secretEggWrongAttempts = 0;
-  const expectedIndex = foundSecretClues.size;
-  if (index !== expectedIndex) {
-    setSecretCodeStatus(`请先打开线索${expectedIndex + 1}。`, "error");
-    return;
-  }
-
-  foundSecretClues.add(index);
-  renderSecretClues();
-  setSecretCodeStatus(`线索${index + 1}已找回。`, "ok");
-  if (foundSecretClues.size === secretClueCards.length && secretEggAnswer) {
-    setSecretCodeStatus("三条线索都找回了，下一步已经解锁。", "ok");
-    window.setTimeout(() => secretEggAnswer.scrollIntoView({ behavior: "smooth", block: "center" }), 180);
-  }
-}
-
 function getSecretRewardPointsTotal() {
   return Object.values(state.secretEggRewards || {}).reduce((total, reward) => {
     const points = Number(reward?.points || 0);
@@ -135,40 +39,8 @@ function getSecretRewardPointsTotal() {
   }, 0);
 }
 
-function renderSecretPlanReward() {
-  if (!secretEggConfirmPlan || !secretEggPlanStatus || typeof state === "undefined") return;
-  const reward = state.secretEggRewards?.[secretEggRewardKey];
-  if (reward) {
-    secretEggConfirmPlan.disabled = true;
-    secretEggConfirmPlan.textContent = "已确认 +5 分";
-    secretEggPlanStatus.textContent = "这份重拍计划已经记进积分里了。";
-    secretEggPlanStatus.dataset.type = "ok";
-  } else {
-    secretEggConfirmPlan.disabled = false;
-    secretEggConfirmPlan.textContent = "确认计划 +5 分";
-    secretEggPlanStatus.textContent = "确认之后，会把这份认真也记进积分里。";
-    secretEggPlanStatus.dataset.type = "";
-  }
-}
-
-function confirmSecretPlan() {
-  state.secretEggRewards ||= {};
-  if (state.secretEggRewards[secretEggRewardKey]) {
-    renderSecretPlanReward();
-    return;
-  }
-  state.secretEggRewards[secretEggRewardKey] = {
-    label: "前海石公园重拍计划",
-    points: 5,
-    confirmedAt: new Date().toISOString(),
-  };
-  renderDashboard();
-  renderSecretPlanReward();
-}
-
 function openSecretEgg() {
   if (!secretEggModal) return;
-  renderSecretEgg();
   secretEggModal.hidden = false;
 }
 
@@ -179,24 +51,6 @@ function closeSecretEggModal() {
 secretDateTrigger?.addEventListener("click", openSecretEgg);
 closeSecretEgg?.addEventListener("click", closeSecretEggModal);
 secretEggModal?.querySelector("[data-close-secret-egg]")?.addEventListener("click", closeSecretEggModal);
-secretClueCards.forEach((card, index) => {
-  card.addEventListener("click", () => {
-    tryUnlockSecretClue(index);
-  });
-});
-secretEggPlanCta?.addEventListener("click", () => {
-  if (!secretEggPlan) return;
-  secretEggPlan.hidden = false;
-  secretEggPlan.classList.add("is-revealed");
-  renderSecretPlanReward();
-  secretEggPlan.scrollIntoView({ behavior: "smooth", block: "center" });
-});
-secretEggCodeInput?.addEventListener("input", () => {
-  if (normalizeSecretEggCode(secretEggCodeInput.value) === secretEggAnswerCode) {
-    setSecretCodeStatus("口令正确，请按顺序点击线索。", "ok");
-  }
-});
-secretEggConfirmPlan?.addEventListener("click", confirmSecretPlan);
 
 function showPage(id) {
   pages.forEach((page) => page.classList.toggle("active", page.id === id));
