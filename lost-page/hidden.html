@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 Not Found</title>
+    <style>
+      :root {
+        color: #111827;
+        background: #f7f7f7;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 32px 18px;
+      }
+
+      main {
+        width: min(660px, 100%);
+      }
+
+      h1 {
+        margin: 0 0 18px;
+        color: #111827;
+        font-size: clamp(4.5rem, 18vw, 9rem);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 0.9;
+      }
+
+      h2 {
+        margin: 0 0 14px;
+        color: #1f2937;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+
+      p {
+        margin: 0 0 10px;
+        color: #4b5563;
+        font-size: 1rem;
+        line-height: 1.7;
+      }
+
+      code {
+        color: inherit;
+        font: inherit;
+      }
+
+      .plain-hit {
+        appearance: none;
+        display: inline;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        color: inherit;
+        background: transparent;
+        font: inherit;
+        line-height: inherit;
+        cursor: text;
+      }
+
+      .meta {
+        margin-top: 28px;
+        padding-top: 18px;
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+        font-size: 0.92rem;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(17, 24, 39, 0.42);
+        backdrop-filter: blur(10px);
+      }
+
+      .modal[hidden] {
+        display: none;
+      }
+
+      .letter {
+        width: min(520px, 100%);
+        padding: clamp(24px, 6vw, 38px);
+        border-radius: 14px;
+        background:
+          radial-gradient(circle at 18% 14%, rgba(255, 211, 220, 0.8), transparent 28%),
+          radial-gradient(circle at 86% 82%, rgba(190, 231, 255, 0.74), transparent 30%),
+          #fffdf8;
+        box-shadow: 0 28px 90px rgba(17, 24, 39, 0.24);
+      }
+
+      .letter p {
+        color: #5d2c36;
+        font-family: Georgia, "Times New Roman", "Songti SC", serif;
+        font-size: clamp(1.3rem, 4vw, 2rem);
+        line-height: 1.9;
+      }
+
+      .letter button {
+        min-height: 42px;
+        margin-top: 18px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 999px;
+        color: #fff;
+        background: #111827;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main aria-label="404 error page">
+      <h1>404</h1>
+      <h2>Page not found</h2>
+      <p>The requested page could not be found on this server.</p>
+      <p>Please check the address, or return to the previous page and try again.</p>
+      <p class="meta">
+        Error reference:
+        <code>RQ-<button class="plain-hit" data-key="5" type="button">5</button>A<button class="plain-hit" data-key="2" type="button">2</button>C<button class="plain-hit" data-key="0" type="button">0</button>-9F</code>
+      </p>
+    </main>
+
+    <section class="modal" id="secretModal" hidden role="dialog" aria-modal="true" aria-label="隐藏消息">
+      <article class="letter">
+        <p>
+          纵使所有深情的证据都已散落在生活的缝隙里，我们仍需亲口说出那句“我爱你”。
+        </p>
+        <button id="closeModal" type="button">关闭</button>
+      </article>
+    </section>
+
+    <script>
+      const sequence = ["5", "2", "0"];
+      const modal = document.getElementById("secretModal");
+      const closeModal = document.getElementById("closeModal");
+      let index = 0;
+
+      document.querySelectorAll("[data-key]").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (button.dataset.key === sequence[index]) {
+            index += 1;
+          } else {
+            index = button.dataset.key === sequence[0] ? 1 : 0;
+          }
+
+          if (index === sequence.length) {
+            modal.hidden = false;
+            index = 0;
+          }
+        });
+      });
+
+      closeModal.addEventListener("click", () => {
+        modal.hidden = true;
+      });
+
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) modal.hidden = true;
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") modal.hidden = true;
+      });
+    </script>
+  </body>
+</html>

@@ -77,6 +77,7 @@ viewAnalysis.addEventListener("click", () => {
 
 document.addEventListener("keydown", (event) => {
   const activePage = document.querySelector(".page.active");
+  if (!activePage) return;
   const currentIndex = pageOrder.indexOf(activePage.id);
   if (event.key === "ArrowRight" && currentIndex < pageOrder.length - 1) {
     showPage(pageOrder[currentIndex + 1]);
@@ -403,16 +404,34 @@ if (savedTheme) {
 }
 
 // Love dashboard
-const state = JSON.parse(
-  localStorage.getItem("love-dashboard") ||
-    JSON.stringify({
-      score: 0,
-      daily: [],
-      words: [],
-      wishes: [],
-      mood: "",
-    })
-);
+const defaultDashboardState = {
+  score: 0,
+  daily: [],
+  words: [],
+  wishes: [],
+  mood: "",
+};
+
+function loadLocalDashboardState() {
+  const rawState = localStorage.getItem("love-dashboard");
+  if (!rawState) return { ...defaultDashboardState };
+
+  try {
+    const parsed = JSON.parse(rawState);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    throw new Error("Dashboard state is not an object.");
+  } catch (error) {
+    console.warn("Local dashboard state is unreadable; starting from a safe empty state.", error);
+    try {
+      localStorage.setItem(`love-dashboard-corrupt-${Date.now()}`, rawState);
+    } catch (backupError) {
+      console.warn("Failed to back up unreadable dashboard state.", backupError);
+    }
+    return { ...defaultDashboardState };
+  }
+}
+
+const state = loadLocalDashboardState();
 
 state.daily ||= [];
 state.words ||= [];
@@ -1168,6 +1187,19 @@ async function prepareCloudState() {
   return snapshot;
 }
 
+function mergeMonthlyReportMaps(localReports = {}, remoteReports = {}) {
+  const merged = { ...(remoteReports || {}) };
+  Object.entries(localReports || {}).forEach(([monthKey, localReport]) => {
+    const remoteReport = merged[monthKey];
+    const localTime = new Date(localReport?.generatedAt || 0).getTime();
+    const remoteTime = new Date(remoteReport?.generatedAt || 0).getTime();
+    if (!remoteReport || localTime >= remoteTime) {
+      merged[monthKey] = localReport;
+    }
+  });
+  return merged;
+}
+
 function mergeCloudState(remoteState) {
   if (!remoteState || typeof remoteState !== "object") return false;
   const before = JSON.stringify(state);
@@ -1223,6 +1255,10 @@ async function saveCloudState() {
 
   try {
     const snapshot = await prepareCloudState();
+    const remoteState = await fetchCloudState().catch(() => null);
+    if (remoteState?.monthlyReports) {
+      snapshot.monthlyReports = mergeMonthlyReportMaps(snapshot.monthlyReports, remoteState.monthlyReports);
+    }
     if (!hasMeaningfulDashboardData(snapshot)) {
       console.warn("Skipped cloud save because empty snapshots are not allowed to replace cloud data.");
       return;
@@ -1864,25 +1900,30 @@ async function generateMonthlyArchiveWithAI(monthKey, report) {
   return true;
 }
 
+function shouldGenerateMonthlyArchive(monthKey, report) {
+  if (!report.memoryCount) return false;
+  const archive = state.monthlyReports?.[monthKey];
+  return !archive || archive.signature !== report.signature;
+}
+
 async function ensureMonthlyArchive(date = new Date()) {
-  if (archiveGenerationInFlight || date.getDate() !== 1) {
+  if (archiveGenerationInFlight) {
     renderMonthlyArchiveBook();
     return;
   }
   const monthKey = getPreviousMonthKey(date);
-  if (state.monthlyReports?.[monthKey]) {
-    renderMonthlyArchiveBook();
-    return;
-  }
   const report = buildLocalMonthlyReport(monthKey);
-  if (!report.memoryCount) {
+  if (!shouldGenerateMonthlyArchive(monthKey, report)) {
     renderMonthlyArchiveBook();
     return;
   }
 
   archiveGenerationInFlight = true;
   try {
-    await generateMonthlyArchiveWithAI(monthKey, report);
+    const generated = await generateMonthlyArchiveWithAI(monthKey, report);
+    if (!generated) {
+      console.warn("Monthly archive generation skipped or failed; it will retry on the next page load.");
+    }
   } finally {
     archiveGenerationInFlight = false;
     renderMonthlyArchiveBook();
