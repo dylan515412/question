@@ -7,6 +7,13 @@ const todayDate = document.getElementById("todayDate");
 const secretDateTrigger = document.getElementById("secretDateTrigger");
 const secretEggModal = document.getElementById("secretEggModal");
 const closeSecretEgg = document.getElementById("closeSecretEgg");
+const waveScrubber = document.getElementById("waveScrubber");
+const secretWaveform = document.getElementById("secretWaveform");
+const waveTime = document.getElementById("waveTime");
+const wavePhrase = document.getElementById("wavePhrase");
+const waveStage = document.getElementById("waveStage");
+const secretForestAudio = document.getElementById("secretForestAudio");
+const secretPreviewAudio = secretForestAudio ? new Audio(secretForestAudio.currentSrc || secretForestAudio.src) : null;
 const presencePill = document.getElementById("presencePill");
 const presenceText = document.getElementById("presenceText");
 const reportMonthTitle = document.getElementById("reportMonthTitle");
@@ -42,15 +49,215 @@ function getSecretRewardPointsTotal() {
 function openSecretEgg() {
   if (!secretEggModal) return;
   secretEggModal.hidden = false;
+  startSecretTimeline({ reset: true });
 }
 
 function closeSecretEggModal() {
   if (secretEggModal) secretEggModal.hidden = true;
+  stopSecretTimeline();
 }
 
 secretDateTrigger?.addEventListener("click", openSecretEgg);
 closeSecretEgg?.addEventListener("click", closeSecretEggModal);
 secretEggModal?.querySelector("[data-close-secret-egg]")?.addEventListener("click", closeSecretEggModal);
+
+const wavePhrases = [
+  "雨落在很远的树叶上，像有人把回忆轻轻翻面。",
+  "风从林间穿过，枝叶替黄昏写下一行很慢的字。",
+  "细小的虫鸣浮起来，像夜色里悄悄亮着的星。",
+  "有一只鸟掠过雨幕，把天空叫得更柔软一点。",
+  "湿润的泥土气息慢慢靠近，像一封还没拆开的信。",
+  "树影被雨水洗得很浅，世界安静得只剩心跳。",
+  "云层在头顶慢慢压低，像旧日子屏住了呼吸。",
+  "远雷滚过森林深处，六月被短短照亮了一瞬。",
+  "雨声没有变大，只是回忆忽然变得更清楚。",
+  "鸟鸣落进风里，又被树叶轻轻接住。",
+  "林间忽然空了一拍，像有什么温柔的事正要发生。",
+  "最后一滴雨落下，秘密仍然留在潮湿的空气里。",
+];
+let secretTimelineFrame = 0;
+let secretPlaybackStartedAt = 0;
+let secretPlaybackOffset = 0;
+let waveScrubIsDragging = false;
+let wavePreviewTimer = 0;
+const secretTimelineDuration = 12;
+
+function getWavePhrase(seconds) {
+  const phraseIndex = Math.max(0, Math.min(wavePhrases.length - 1, Math.floor(seconds)));
+  return wavePhrases[phraseIndex];
+}
+
+function buildSecretWaveform() {
+  if (!secretWaveform || secretWaveform.children.length) return;
+  for (let index = 0; index < 120; index += 1) {
+    const bar = document.createElement("i");
+    const distanceFromThunder = Math.abs(index / 10 - 6.2);
+    const thunderLift = Math.max(0, 1 - distanceFromThunder / 0.8) * 42;
+    const pulse = Math.sin(index * 0.46) * 0.42 + Math.sin(index * 1.31) * 0.24 + 0.7;
+    bar.style.setProperty("--bar-height", `${Math.round(20 + Math.abs(pulse) * 44 + thunderLift)}%`);
+    bar.style.setProperty("--bar-delay", `${index * 7}ms`);
+    secretWaveform.appendChild(bar);
+  }
+}
+
+function updateWavePuzzle() {
+  if (!waveScrubber) return;
+  const seconds = Number(waveScrubber.value || 0);
+  const progress = Math.max(0, Math.min(1, seconds / Number(waveScrubber.max || 12)));
+  const activeBar = Math.max(0, Math.min(119, Math.floor(seconds * 10)));
+  if (waveTime) waveTime.textContent = `${seconds.toFixed(1)}s / ${secretTimelineDuration.toFixed(1)}s`;
+  wavePhrase.textContent = getWavePhrase(seconds);
+  secretWaveform?.style.setProperty("--wave-progress", `${progress * 100}%`);
+  Array.from(secretWaveform?.children || []).forEach((bar, index) => {
+    bar.classList.toggle("active", index === activeBar);
+    bar.classList.toggle("nearby", Math.abs(index - activeBar) <= 2 && index !== activeBar);
+  });
+
+  waveStage?.classList.toggle("thunder-hit", seconds >= 6.2 && seconds < 7.45);
+}
+
+function stopSecretTimeline() {
+  if (secretTimelineFrame) {
+    cancelAnimationFrame(secretTimelineFrame);
+    secretTimelineFrame = 0;
+  }
+  stopWavePreview();
+  if (secretForestAudio) {
+    secretForestAudio.pause();
+    secretForestAudio.currentTime = 0;
+  }
+  waveStage?.classList.remove("ambient-playing", "thunder-hit");
+}
+
+function tickSecretTimeline() {
+  const elapsed = (performance.now() - secretPlaybackStartedAt) / 1000;
+  const audioTime = Number.isFinite(secretForestAudio?.currentTime) ? secretForestAudio.currentTime : NaN;
+  const rawValue = Number.isFinite(audioTime)
+    ? Math.min(secretTimelineDuration, audioTime)
+    : Math.min(secretTimelineDuration, secretPlaybackOffset + elapsed);
+  const nextValue = Math.round(rawValue * 10) / 10;
+  if (waveScrubber) waveScrubber.value = nextValue.toFixed(1);
+  updateWavePuzzle();
+  if (rawValue < secretTimelineDuration && !secretEggModal?.hidden) {
+    secretTimelineFrame = requestAnimationFrame(tickSecretTimeline);
+  } else {
+    secretTimelineFrame = 0;
+    waveStage?.classList.remove("ambient-playing", "thunder-hit");
+  }
+}
+
+function playSecretForestFrom(seconds) {
+  if (!secretForestAudio || secretEggModal?.hidden) return Promise.resolve();
+  const targetTime = Math.max(0, Math.min(secretTimelineDuration - 0.05, Number(seconds || 0)));
+  secretForestAudio.pause();
+  secretForestAudio.currentTime = targetTime;
+  secretForestAudio.volume = 0.95;
+  secretPlaybackOffset = targetTime;
+  secretPlaybackStartedAt = performance.now();
+  if (secretTimelineFrame) {
+    cancelAnimationFrame(secretTimelineFrame);
+    secretTimelineFrame = 0;
+  }
+  return secretForestAudio.play().then(() => {
+    waveStage?.classList.add("ambient-playing");
+    secretTimelineFrame = requestAnimationFrame(tickSecretTimeline);
+  });
+}
+
+function startSecretTimeline({ reset = false } = {}) {
+  if (!waveScrubber) return;
+  if (reset) waveScrubber.value = "0";
+  secretPlaybackOffset = Number(waveScrubber.value || 0);
+  if (secretForestAudio) {
+    playSecretForestFrom(secretPlaybackOffset).catch((error) => {
+      console.warn("Secret forest audio playback was blocked.", error);
+      waveStage?.classList.remove("ambient-playing");
+    });
+  } else {
+    waveStage?.classList.add("ambient-playing");
+  }
+}
+
+buildSecretWaveform();
+updateWavePuzzle();
+
+function stopWavePreview() {
+  window.clearTimeout(wavePreviewTimer);
+  if (!secretPreviewAudio) return;
+  secretPreviewAudio.pause();
+}
+
+function previewWaveAt(seconds) {
+  if (!secretPreviewAudio || secretEggModal?.hidden) return;
+  window.clearTimeout(wavePreviewTimer);
+  secretPreviewAudio.pause();
+  secretPreviewAudio.currentTime = Math.max(0, Math.min(secretTimelineDuration - 0.15, seconds));
+  secretPreviewAudio.volume = 0.78;
+  secretPreviewAudio.play().then(() => {
+    waveStage?.classList.add("ambient-playing");
+    wavePreviewTimer = window.setTimeout(() => {
+      if (waveScrubIsDragging) secretPreviewAudio.pause();
+    }, 520);
+  }).catch(() => {});
+}
+
+waveScrubber?.addEventListener("input", () => {
+  secretPlaybackOffset = Number(waveScrubber.value || 0);
+  if (secretForestAudio) {
+    secretForestAudio.currentTime = secretPlaybackOffset;
+  }
+  secretPlaybackStartedAt = performance.now();
+  updateWavePuzzle();
+  if (waveScrubIsDragging) previewWaveAt(secretPlaybackOffset);
+});
+
+function beginWaveScrub() {
+  if (!waveScrubber || secretEggModal?.hidden) return;
+  if (waveScrubIsDragging) return;
+  waveScrubIsDragging = true;
+  if (secretForestAudio) {
+    secretForestAudio.pause();
+    if (secretForestAudio.ended) secretForestAudio.currentTime = Number(waveScrubber.value || 0);
+  }
+  if (secretTimelineFrame) {
+    cancelAnimationFrame(secretTimelineFrame);
+    secretTimelineFrame = 0;
+  }
+  previewWaveAt(Number(waveScrubber.value || 0));
+}
+
+function endWaveScrub() {
+  if (!waveScrubIsDragging) return;
+  waveScrubIsDragging = false;
+  secretPlaybackOffset = Number(waveScrubber?.value || 0);
+  secretPlaybackStartedAt = performance.now();
+  if (secretForestAudio) secretForestAudio.currentTime = secretPlaybackOffset;
+  updateWavePuzzle();
+  stopWavePreview();
+  if (!secretEggModal?.hidden) {
+    playSecretForestFrom(secretPlaybackOffset).catch((error) => {
+      console.warn("Secret forest audio playback was blocked after scrubbing.", error);
+    });
+  }
+}
+
+waveScrubber?.addEventListener("pointerdown", beginWaveScrub);
+waveScrubber?.addEventListener("pointerup", endWaveScrub);
+waveScrubber?.addEventListener("pointercancel", endWaveScrub);
+waveScrubber?.addEventListener("touchstart", beginWaveScrub, { passive: true });
+waveScrubber?.addEventListener("touchend", endWaveScrub);
+waveScrubber?.addEventListener("mousedown", beginWaveScrub);
+window.addEventListener("mouseup", endWaveScrub);
+window.addEventListener("pointerup", endWaveScrub);
+window.addEventListener("blur", endWaveScrub);
+waveScrubber?.addEventListener("change", endWaveScrub);
+
+secretForestAudio?.addEventListener("ended", () => {
+  stopWavePreview();
+  waveStage?.classList.remove("ambient-playing", "thunder-hit");
+  if (waveScrubber) waveScrubber.value = String(secretTimelineDuration);
+  updateWavePuzzle();
+});
 
 function showPage(id) {
   pages.forEach((page) => page.classList.toggle("active", page.id === id));
@@ -513,6 +720,7 @@ const closeLetterReader = document.getElementById("closeLetterReader");
 const letterReaderTitle = document.getElementById("letterReaderTitle");
 const letterReaderText = document.getElementById("letterReaderText");
 const letterReaderPhoto = document.getElementById("letterReaderPhoto");
+const letterChoicePanel = document.getElementById("letterChoicePanel");
 let pendingPhoto = "";
 let pendingWordsPhoto = "";
 let selectedDateKey = toDateKey(new Date());
@@ -568,6 +776,29 @@ function getPhotoDescription(photo) {
 function getLetterPreview(text, maxLength = 46) {
   const normalized = String(text || "").replace(/\s+/g, " ").trim();
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+}
+
+const juneTwentySecretLetter = {
+  title: "六月二十号下面的话",
+  time: "6.20 20:06",
+  text:
+    "那一天其实没有被留在过去。\n\n我记得前海石公园的阳光，记得海风从水面吹过来，记得草地很亮，也记得你站在镜头前的时候，整个世界都像安静了一下。\n\n后来很多瞬间都会变模糊，但那天有一种感觉一直很清楚：原来回忆不是因为完美才珍贵，而是因为里面有你。它有阳光，有风，有一点没说出口的小情绪，也有后来想起来会心软的部分。\n\n如果可以重新收藏那一天，我不想只收藏一张好看的照片。我想收藏你被光照到的样子，收藏你看向远处的样子，收藏我们一起把普通下午过成回忆的样子。\n\n所以 6.20 被我藏在时间轴里，也藏在这里。不是为了回到过去，而是想告诉你：有些日子会被我认真记住，有些人会被我一直放在心上。",
+};
+
+const heavenJuneSecondLetter = {
+  title: "老天盖过章的信",
+  time: "6.2 22:06",
+  rewardKey: "heaven_june_2",
+  text:
+    "有些事情，好像不是我们安排好的。\n\n雨声先落下来，风从树叶中间穿过去，世界慢慢暗了一点。然后在 6.2 秒的时候，雷声忽然响起，像老天在很远的地方敲了一下桌子。\n\n那一声不是吓人的，更像提醒。提醒我们，有些相遇不是随便发生的；有些人走进生命里，也不是为了短短停留一下。\n\n如果那天的雨是一封信，雷声就是信封上的印章。它没有写很复杂的话，只是把这件事说得很笃定：你们兜兜转转，还是会走到同一个地方。\n\n所以老天觉得，我们一辈子都会在一起。",
+};
+
+function isJuneTwentyKey(key) {
+  return String(key || "").slice(5) === "06-20";
+}
+
+function isJuneSecondKey(key) {
+  return String(key || "").slice(5) === "06-02";
 }
 
 function toDateKey(date) {
@@ -1484,9 +1715,66 @@ async function deleteActiveCoverPhoto() {
   }
 }
 
+function resetLetterChoices() {
+  if (!letterChoicePanel) return;
+  letterChoicePanel.hidden = true;
+  letterChoicePanel.innerHTML = "";
+}
+
+function claimHeavenJuneSecondReward(statusElement) {
+  state.secretEggRewards ||= {};
+  if (state.secretEggRewards[heavenJuneSecondLetter.rewardKey]) {
+    if (statusElement) statusElement.textContent = "老天已经把这 10 分记在账上了。";
+    return;
+  }
+  state.secretEggRewards[heavenJuneSecondLetter.rewardKey] = {
+    points: 10,
+    claimedAt: new Date().toISOString(),
+    label: "六月二号天意奖励",
+  };
+  if (statusElement) statusElement.textContent = "老天点头了。总积分 +10。";
+  renderDashboard();
+}
+
+function showHeavenJuneSecondChoices() {
+  if (!letterChoicePanel) return;
+  letterChoicePanel.innerHTML = "";
+  letterChoicePanel.hidden = false;
+
+  const status = document.createElement("p");
+  const actions = document.createElement("div");
+  const agree = document.createElement("button");
+  const disagree = document.createElement("button");
+  const alreadyClaimed = Boolean(state.secretEggRewards?.[heavenJuneSecondLetter.rewardKey]);
+
+  status.className = "letter-choice-status";
+  status.textContent = alreadyClaimed ? "这封天意已经生效过了。" : "老天把选择权放在这里。";
+  actions.className = "letter-choice-actions";
+  agree.type = "button";
+  disagree.type = "button";
+  agree.className = "letter-choice-btn agree";
+  disagree.className = "letter-choice-btn disagree";
+  agree.textContent = alreadyClaimed ? "已同意" : "同意";
+  disagree.textContent = "不同意";
+  agree.disabled = alreadyClaimed;
+
+  agree.addEventListener("click", () => {
+    claimHeavenJuneSecondReward(status);
+    agree.disabled = true;
+    agree.textContent = "已同意";
+  });
+  disagree.addEventListener("click", () => {
+    status.textContent = "雷声又轻轻响了一下，好像在说：再想想。";
+  });
+
+  actions.append(agree, disagree);
+  letterChoicePanel.append(status, actions);
+}
+
 function openLetter(entry) {
   if (!letterReader || !letterReaderText) return;
   clearTimeout(typewriterTimer);
+  resetLetterChoices();
   letterReader.hidden = false;
   letterReaderTitle.textContent = entry.time ? `${entry.time} 写下的信` : "慢慢打开这封信";
   letterReaderText.textContent = "";
@@ -1507,6 +1795,8 @@ function openLetter(entry) {
     if (index <= text.length) {
       index += 1;
       typewriterTimer = window.setTimeout(typeNext, 34);
+    } else if (entry.rewardKey === heavenJuneSecondLetter.rewardKey) {
+      showHeavenJuneSecondChoices();
     }
   }
 
@@ -1515,6 +1805,7 @@ function openLetter(entry) {
 
 function closeLetter() {
   clearTimeout(typewriterTimer);
+  resetLetterChoices();
   if (letterReader) letterReader.hidden = true;
 }
 
@@ -1936,6 +2227,8 @@ function getMemoryDateKeys() {
 
 function renderDayBundle() {
   const entries = getDateEntries(selectedDateKey);
+  const showJuneTwentySecret = isJuneTwentyKey(selectedDateKey);
+  const showHeavenJuneSecond = isJuneSecondKey(selectedDateKey);
   selectedDateTitle.textContent = readableDate(selectedDateKey);
   dayBundle.innerHTML = "";
 
@@ -1944,7 +2237,7 @@ function renderDayBundle() {
     empty.className = "empty-day";
     empty.textContent = "这一天还没有种下回忆。";
     dayBundle.appendChild(empty);
-    return;
+    if (!showJuneTwentySecret && !showHeavenJuneSecond) return;
   }
 
   entries.daily.forEach((entry) => {
@@ -2003,6 +2296,46 @@ function renderDayBundle() {
     }
     dayBundle.appendChild(card);
   });
+
+  if (showJuneTwentySecret) {
+    const card = document.createElement("article");
+    card.className = "bundle-entry june-secret-card";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "june-secret-letter";
+    const label = document.createElement("span");
+    const title = document.createElement("strong");
+    const copy = document.createElement("p");
+    const time = document.createElement("time");
+    label.textContent = "藏在时间轴下面";
+    title.textContent = juneTwentySecretLetter.title;
+    copy.textContent = "阳光、海风、草地，还有一段没有放在彩蛋里的话。";
+    time.textContent = juneTwentySecretLetter.time;
+    button.append(label, title, copy, time);
+    button.addEventListener("click", () => openLetter(juneTwentySecretLetter));
+    card.appendChild(button);
+    dayBundle.appendChild(card);
+  }
+
+  if (showHeavenJuneSecond) {
+    const card = document.createElement("article");
+    card.className = "bundle-entry june-secret-card heaven-secret-card";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "june-secret-letter heaven-secret-letter";
+    const label = document.createElement("span");
+    const title = document.createElement("strong");
+    const copy = document.createElement("p");
+    const time = document.createElement("time");
+    label.textContent = "雷声盖章";
+    title.textContent = heavenJuneSecondLetter.title;
+    copy.textContent = "有些相遇像雨夜里的雷，不解释，只替命运盖章。";
+    time.textContent = heavenJuneSecondLetter.time;
+    button.append(label, title, copy, time);
+    button.addEventListener("click", () => openLetter(heavenJuneSecondLetter));
+    card.appendChild(button);
+    dayBundle.appendChild(card);
+  }
 }
 
 function renderCalendar() {
@@ -2028,7 +2361,7 @@ function renderCalendar() {
     button.type = "button";
     button.textContent = String(day);
     button.className = "calendar-day";
-    button.classList.toggle("has-memory", memoryDates.has(key));
+    button.classList.toggle("has-memory", memoryDates.has(key) || isJuneSecondKey(key) || isJuneTwentyKey(key));
     button.classList.toggle("selected", key === selectedDateKey);
     button.addEventListener("click", () => {
       selectedDateKey = key;

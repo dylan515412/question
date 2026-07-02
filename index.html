@@ -240,15 +240,22 @@ AI 可以模拟浪漫，模拟陪伴，模拟一个永远正确的爱人。可�
 
           <div class="secret-egg-modal" id="secretEggModal" hidden role="dialog" aria-modal="true" aria-label="今日彩蛋">
             <div class="secret-egg-backdrop" data-close-secret-egg></div>
-            <article class="secret-egg-card qr-egg-card">
+            <article class="secret-egg-card audio-egg-card">
               <button class="icon-close" id="closeSecretEgg" type="button" aria-label="关闭今日彩蛋">×</button>
-              <p class="panel-eyebrow">Secret Gate</p>
-              <h3>彩蛋</h3>
-              <p>扫一下，会到一个看起来什么都没有的地方。</p>
-              <figure class="secret-qr-frame">
-                <img src="assets/secret-qr.png" alt="隐藏网页二维码" />
-                <figcaption>有些话，要绕一点路才更像秘密。</figcaption>
-              </figure>
+              <p class="panel-eyebrow">Hidden Frequency</p>
+              <h3>404.620 MHz</h3>
+              <div class="wave-puzzle" id="wavePuzzle">
+                <audio id="secretForestAudio" src="./assets/rainy-forest-620.wav?v=20260702-b" preload="auto"></audio>
+                <div class="wave-stage" id="waveStage">
+                  <div class="wave-bars" id="secretWaveform" aria-hidden="true"></div>
+                  <p class="wave-phrase" id="wavePhrase">雨落在很远的树叶上，像有人把回忆轻轻翻面。</p>
+                </div>
+                <div class="wave-control-head">
+                  <span>forest tape</span>
+                  <output class="wave-time" id="waveTime" for="waveScrubber">0.0s / 12.0s</output>
+                </div>
+                <input id="waveScrubber" class="wave-scrubber" type="range" min="0" max="12" step="0.1" value="0" aria-label="拖动隐藏音频时间轴" />
+              </div>
             </article>
           </div>
 
@@ -408,6 +415,7 @@ AI 可以模拟浪漫，模拟陪伴，模拟一个永远正确的爱人。可�
             <h3 id="letterReaderTitle">慢慢打开这封信</h3>
             <div class="typed-letter" id="letterReaderText"></div>
             <div class="letter-reader-photo" id="letterReaderPhoto" hidden></div>
+            <div class="letter-choice-panel" id="letterChoicePanel" hidden></div>
           </article>
         </div>
       </main>
