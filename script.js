@@ -14,6 +14,12 @@ const wavePhrase = document.getElementById("wavePhrase");
 const waveStage = document.getElementById("waveStage");
 const secretForestAudio = document.getElementById("secretForestAudio");
 const secretPreviewAudio = secretForestAudio ? new Audio(secretForestAudio.currentSrc || secretForestAudio.src) : null;
+const memoryEraser = document.getElementById("memoryEraser");
+const secretEraserCanvas = document.getElementById("secretEraserCanvas");
+const secretEraser = document.getElementById("secretEraser");
+const eraserFinalLetter = document.getElementById("eraserFinalLetter");
+const eraserFinalButton = document.getElementById("eraserFinalButton");
+const eraserRewardStatus = document.getElementById("eraserRewardStatus");
 const presencePill = document.getElementById("presencePill");
 const presenceText = document.getElementById("presenceText");
 const reportMonthTitle = document.getElementById("reportMonthTitle");
@@ -49,12 +55,13 @@ function getSecretRewardPointsTotal() {
 function openSecretEgg() {
   if (!secretEggModal) return;
   secretEggModal.hidden = false;
-  startSecretTimeline({ reset: true });
+  startMemoryEraser();
 }
 
 function closeSecretEggModal() {
   if (secretEggModal) secretEggModal.hidden = true;
   stopSecretTimeline();
+  stopMemoryEraser();
 }
 
 secretDateTrigger?.addEventListener("click", openSecretEgg);
@@ -258,6 +265,370 @@ secretForestAudio?.addEventListener("ended", () => {
   if (waveScrubber) waveScrubber.value = String(secretTimelineDuration);
   updateWavePuzzle();
 });
+
+const eraserRewardKey = "many_faces_eraser_final";
+const eraserSinglePhoto = "./assets/eraser-layer-2.jpeg";
+const eraserPuzzlePhotos = [
+  "./assets/eraser-collage-1.jpeg",
+  "./assets/eraser-collage-2.jpeg",
+  "./assets/eraser-collage-3.png",
+  "./assets/eraser-collage-4.png",
+  "./assets/eraser-collage-5.jpg",
+];
+const eraserState = {
+  layer: 0,
+  drawing: false,
+  paused: false,
+  showingClear: false,
+  pauseTimer: 0,
+  marks: [],
+  cells: new Set(),
+  images: new Map(),
+  ready: false,
+  listenersReady: false,
+};
+
+function loadEraserImage(src) {
+  if (eraserState.images.has(src)) return Promise.resolve(eraserState.images.get(src));
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      eraserState.images.set(src, image);
+      resolve(image);
+    };
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function loadEraserImages() {
+  return Promise.all([eraserSinglePhoto, ...eraserPuzzlePhotos].map(loadEraserImage));
+}
+
+function resizeEraserCanvas() {
+  if (!secretEraserCanvas) return null;
+  const rect = secretEraserCanvas.getBoundingClientRect();
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const width = Math.max(320, rect.width);
+  const height = Math.max(420, rect.height);
+  if (secretEraserCanvas.width !== Math.round(width * dpr) || secretEraserCanvas.height !== Math.round(height * dpr)) {
+    secretEraserCanvas.width = Math.round(width * dpr);
+    secretEraserCanvas.height = Math.round(height * dpr);
+  }
+  const ctx = secretEraserCanvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, width, height };
+}
+
+function drawCoverImage(ctx, image, x, y, width, height) {
+  if (!image) return;
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawEraserMosaic(ctx, width, height) {
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(0, 0, width, height);
+  const size = Math.max(18, Math.round(width / 18));
+  for (let y = 0; y < height + size; y += size) {
+    for (let x = 0; x < width + size; x += size) {
+      const shade = 8 + ((x * 17 + y * 11) % 35);
+      ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade + 2})`;
+      ctx.fillRect(x, y, size - 1, size - 1);
+    }
+  }
+}
+
+function drawEraserCollage(ctx, width, height) {
+  const gap = Math.max(8, width * 0.018);
+  const cells = [
+    { x: gap, y: gap, w: width * 0.48 - gap * 1.4, h: height * 0.53 - gap * 1.4, r: -2.4 },
+    { x: width * 0.48 + gap * 0.4, y: gap, w: width * 0.52 - gap * 1.4, h: height * 0.36 - gap * 1.4, r: 1.8 },
+    { x: gap, y: height * 0.53 + gap * 0.35, w: width * 0.34 - gap * 1.2, h: height * 0.47 - gap * 1.4, r: 2 },
+    { x: width * 0.34 + gap * 0.25, y: height * 0.53 + gap * 0.1, w: width * 0.32 - gap * 1.1, h: height * 0.47 - gap * 1.25, r: -1.4 },
+    { x: width * 0.66 + gap * 0.15, y: height * 0.36 + gap * 0.35, w: width * 0.34 - gap * 1.15, h: height * 0.64 - gap * 1.55, r: 1 },
+  ];
+  ctx.fillStyle = "#fff9f6";
+  ctx.fillRect(0, 0, width, height);
+  cells.forEach((cell, index) => {
+    const image = eraserState.images.get(eraserPuzzlePhotos[index % eraserPuzzlePhotos.length]);
+    ctx.save();
+    ctx.translate(cell.x + cell.w / 2, cell.y + cell.h / 2);
+    ctx.rotate((cell.r * Math.PI) / 180);
+    ctx.fillStyle = "rgba(255, 253, 248, 0.96)";
+    ctx.fillRect(-cell.w / 2 - 8, -cell.h / 2 - 8, cell.w + 16, cell.h + 16);
+    ctx.beginPath();
+    ctx.rect(-cell.w / 2, -cell.h / 2, cell.w, cell.h);
+    ctx.clip();
+    drawCoverImage(ctx, image, -cell.w / 2, -cell.h / 2, cell.w, cell.h);
+    ctx.restore();
+  });
+}
+
+function drawEraserTarget(ctx, width, height, layer = eraserState.layer) {
+  const single = eraserState.images.get(eraserSinglePhoto);
+  if (layer === 0) {
+    drawCoverImage(ctx, single, 0, 0, width, height);
+  } else if (layer === 1) {
+    drawEraserCollage(ctx, width, height);
+  } else {
+    drawEraserFinalBase(ctx, width, height);
+  }
+}
+
+function drawBlurredEraserTarget(ctx, width, height) {
+  ctx.save();
+  ctx.filter = eraserState.layer === 2 ? "blur(16px) saturate(0.9) brightness(1.02)" : "blur(18px) saturate(0.86) brightness(0.92)";
+  drawEraserTarget(ctx, width, height);
+  ctx.restore();
+  ctx.fillStyle = eraserState.layer === 2 ? "rgba(255, 249, 252, 0.24)" : "rgba(255, 245, 248, 0.18)";
+  ctx.fillRect(0, 0, width, height);
+}
+
+function drawEraserFinalBase(ctx, width, height) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#fffdf8");
+  gradient.addColorStop(0.5, "#fff0f4");
+  gradient.addColorStop(1, "#eef9ff");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "rgba(201, 59, 75, 0.08)";
+  for (let index = 0; index < 34; index += 1) {
+    const x = (index * 97) % width;
+    const y = (index * 53) % height;
+    ctx.beginPath();
+    ctx.arc(x, y, 2 + (index % 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawEraserLayer() {
+  const setup = resizeEraserCanvas();
+  if (!setup) return;
+  const { ctx, width, height } = setup;
+  ctx.clearRect(0, 0, width, height);
+
+  if (eraserState.showingClear) {
+    drawEraserTarget(ctx, width, height);
+    return;
+  }
+
+  drawBlurredEraserTarget(ctx, width, height);
+
+  ctx.save();
+  if (eraserState.layer === 0) {
+    drawEraserMosaic(ctx, width, height);
+  } else {
+    drawEraserTarget(ctx, width, height, eraserState.layer - 1);
+  }
+  ctx.globalCompositeOperation = "destination-out";
+  eraserState.marks.forEach((mark) => {
+    const gradient = ctx.createRadialGradient(mark.x, mark.y, 0, mark.x, mark.y, mark.r);
+    gradient.addColorStop(0, "rgba(0, 0, 0, 0.98)");
+    gradient.addColorStop(0.72, "rgba(0, 0, 0, 0.82)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(mark.x, mark.y, mark.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function resetEraserLayer(nextLayer = 0) {
+  window.clearTimeout(eraserState.pauseTimer);
+  eraserState.layer = nextLayer;
+  eraserState.paused = false;
+  eraserState.showingClear = false;
+  eraserState.drawing = false;
+  eraserState.marks = [];
+  eraserState.cells = new Set();
+  if (eraserFinalLetter) eraserFinalLetter.hidden = true;
+  memoryEraser?.classList.remove("final-visible");
+  drawEraserLayer();
+}
+
+function getEraserCoverage() {
+  const setup = resizeEraserCanvas();
+  if (!setup) return 0;
+  const cell = 18;
+  const total = Math.ceil(setup.width / cell) * Math.ceil(setup.height / cell);
+  return total ? eraserState.cells.size / total : 0;
+}
+
+function markEraserCells(x, y, radius) {
+  const setup = resizeEraserCanvas();
+  if (!setup) return;
+  const cell = 18;
+  const minX = Math.max(0, Math.floor((x - radius) / cell));
+  const maxX = Math.min(Math.ceil(setup.width / cell), Math.ceil((x + radius) / cell));
+  const minY = Math.max(0, Math.floor((y - radius) / cell));
+  const maxY = Math.min(Math.ceil(setup.height / cell), Math.ceil((y + radius) / cell));
+  for (let gx = minX; gx <= maxX; gx += 1) {
+    for (let gy = minY; gy <= maxY; gy += 1) {
+      const cx = gx * cell + cell / 2;
+      const cy = gy * cell + cell / 2;
+      if (Math.hypot(cx - x, cy - y) <= radius + cell) eraserState.cells.add(`${gx}:${gy}`);
+    }
+  }
+}
+
+function showEraserFinalLetter() {
+  if (eraserFinalLetter) eraserFinalLetter.hidden = false;
+  memoryEraser?.classList.add("final-visible");
+  const claimed = Boolean(state.secretEggRewards?.[eraserRewardKey]);
+  if (eraserFinalButton) {
+    eraserFinalButton.disabled = claimed;
+    eraserFinalButton.textContent = claimed ? "已经看见了" : "我看见了";
+  }
+  if (eraserRewardStatus) {
+    eraserRewardStatus.textContent = claimed ? "这 5 分已经收进总积分里了。" : "";
+  }
+}
+
+function advanceEraserIfReady() {
+  const coverage = getEraserCoverage();
+  if (eraserState.layer < 2 && coverage >= 0.75) {
+    holdClearEraserLayer(eraserState.layer + 1);
+    return;
+  }
+  if (eraserState.layer === 2 && coverage >= 0.75) {
+    holdClearEraserLayer(null);
+  }
+}
+
+function holdClearEraserLayer(nextLayer) {
+  if (eraserState.paused) return;
+  eraserState.paused = true;
+  eraserState.drawing = false;
+  eraserState.showingClear = true;
+  eraserState.marks = [];
+  eraserState.cells = new Set();
+  drawEraserLayer();
+  window.clearTimeout(eraserState.pauseTimer);
+  eraserState.pauseTimer = window.setTimeout(() => {
+    eraserState.paused = false;
+    eraserState.showingClear = false;
+    if (nextLayer === null) {
+      drawEraserLayer();
+      showEraserFinalLetter();
+      return;
+    }
+    resetEraserLayer(nextLayer);
+  }, nextLayer === null ? 850 : 1200);
+}
+
+function getEraserPoint(event) {
+  if (!secretEraserCanvas) return null;
+  const rect = secretEraserCanvas.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+}
+
+function moveSecretEraser(point) {
+  if (!point || !secretEraser) return;
+  secretEraser.style.setProperty("--eraser-x", `${point.x}px`);
+  secretEraser.style.setProperty("--eraser-y", `${point.y}px`);
+}
+
+function eraseAt(point) {
+  if (!point || eraserState.paused || eraserFinalLetter?.hidden === false) return;
+  const setup = resizeEraserCanvas();
+  if (!setup) return;
+  const radius = Math.max(34, Math.min(58, setup.width * 0.085));
+  eraserState.marks.push({ x: point.x, y: point.y, r: radius });
+  if (eraserState.marks.length > 220) eraserState.marks.shift();
+  markEraserCells(point.x, point.y, radius);
+  moveSecretEraser(point);
+  drawEraserLayer();
+  advanceEraserIfReady();
+}
+
+function handleEraserPointerDown(event) {
+  if (!secretEraserCanvas || !eraserState.ready || eraserState.paused) return;
+  eraserState.drawing = true;
+  secretEraserCanvas.setPointerCapture?.(event.pointerId);
+  eraseAt(getEraserPoint(event));
+}
+
+function handleEraserPointerMove(event) {
+  if (!secretEraserCanvas || !eraserState.ready) return;
+  const point = getEraserPoint(event);
+  moveSecretEraser(point);
+  if (eraserState.paused) return;
+  if (eraserState.drawing) eraseAt(point);
+}
+
+function handleEraserPointerUp(event) {
+  eraserState.drawing = false;
+  secretEraserCanvas?.releasePointerCapture?.(event.pointerId);
+}
+
+function ensureEraserListeners() {
+  if (!secretEraserCanvas || eraserState.listenersReady) return;
+  eraserState.listenersReady = true;
+  secretEraserCanvas.addEventListener("pointerdown", handleEraserPointerDown);
+  secretEraserCanvas.addEventListener("pointermove", handleEraserPointerMove);
+  secretEraserCanvas.addEventListener("pointerup", handleEraserPointerUp);
+  secretEraserCanvas.addEventListener("pointercancel", handleEraserPointerUp);
+  window.addEventListener("resize", () => {
+    if (!secretEggModal?.hidden && eraserState.ready) drawEraserLayer();
+  });
+}
+
+function startMemoryEraser() {
+  if (!secretEraserCanvas) return;
+  ensureEraserListeners();
+  window.clearTimeout(eraserState.pauseTimer);
+  eraserState.ready = false;
+  eraserState.drawing = false;
+  eraserState.paused = false;
+  eraserState.showingClear = false;
+  if (eraserFinalLetter) eraserFinalLetter.hidden = true;
+  memoryEraser?.classList.remove("final-visible");
+  loadEraserImages()
+    .then(() => {
+      eraserState.ready = true;
+      resetEraserLayer(0);
+      const setup = resizeEraserCanvas();
+      if (setup) moveSecretEraser({ x: setup.width - 56, y: setup.height - 56 });
+    })
+    .catch((error) => console.warn("Failed to load eraser images.", error));
+}
+
+function stopMemoryEraser() {
+  window.clearTimeout(eraserState.pauseTimer);
+  eraserState.drawing = false;
+  eraserState.paused = false;
+  eraserState.showingClear = false;
+  if (eraserFinalLetter) eraserFinalLetter.hidden = true;
+  memoryEraser?.classList.remove("final-visible");
+}
+
+function claimEraserReward() {
+  state.secretEggRewards ||= {};
+  if (state.secretEggRewards[eraserRewardKey]) {
+    if (eraserRewardStatus) eraserRewardStatus.textContent = "这 5 分已经收进总积分里了。";
+    return;
+  }
+  state.secretEggRewards[eraserRewardKey] = {
+    points: 5,
+    claimedAt: new Date().toISOString(),
+    label: "看见很多种自己的彩蛋",
+  };
+  if (eraserRewardStatus) eraserRewardStatus.textContent = "总积分 +5。";
+  if (eraserFinalButton) {
+    eraserFinalButton.disabled = true;
+    eraserFinalButton.textContent = "已经看见了";
+  }
+  renderDashboard();
+}
+
+eraserFinalButton?.addEventListener("click", claimEraserReward);
 
 function showPage(id) {
   pages.forEach((page) => page.classList.toggle("active", page.id === id));

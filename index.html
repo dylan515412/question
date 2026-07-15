@@ -240,21 +240,20 @@ AI 可以模拟浪漫，模拟陪伴，模拟一个永远正确的爱人。可�
 
           <div class="secret-egg-modal" id="secretEggModal" hidden role="dialog" aria-modal="true" aria-label="今日彩蛋">
             <div class="secret-egg-backdrop" data-close-secret-egg></div>
-            <article class="secret-egg-card audio-egg-card">
+            <article class="secret-egg-card eraser-egg-card">
               <button class="icon-close" id="closeSecretEgg" type="button" aria-label="关闭今日彩蛋">×</button>
-              <p class="panel-eyebrow">Hidden Frequency</p>
-              <h3>404.620 MHz</h3>
-              <div class="wave-puzzle" id="wavePuzzle">
-                <audio id="secretForestAudio" src="./assets/rainy-forest-620.wav?v=20260702-b" preload="auto"></audio>
-                <div class="wave-stage" id="waveStage">
-                  <div class="wave-bars" id="secretWaveform" aria-hidden="true"></div>
-                  <p class="wave-phrase" id="wavePhrase">雨落在很远的树叶上，像有人把回忆轻轻翻面。</p>
+              <div class="memory-eraser" id="memoryEraser">
+                <canvas id="secretEraserCanvas" aria-label="隐藏照片擦除画布"></canvas>
+                <div class="secret-eraser" id="secretEraser" aria-hidden="true"></div>
+                <div class="eraser-final-letter" id="eraserFinalLetter" hidden>
+                  <p>你看，你从来都不是只有一种样子。</p>
+                  <p>你可以安静，可以温柔，可以待在自己熟悉的地方。也可以好奇，可以热烈，可以突然想去试试这个世界。</p>
+                  <p>我喜欢现在的你，也很想念那个愿意把生活认真打开的你。不是因为过去的你更好，而是因为我知道，那份光一直都在。</p>
+                  <p>你不用一下子变得勇敢。只要偶尔想起来：原来我也可以有很多种很好看的样子。</p>
+                  <p>而我会一直在旁边，看见每一个你。</p>
+                  <button class="eraser-final-btn" id="eraserFinalButton" type="button">我看见了</button>
+                  <small id="eraserRewardStatus"></small>
                 </div>
-                <div class="wave-control-head">
-                  <span>forest tape</span>
-                  <output class="wave-time" id="waveTime" for="waveScrubber">0.0s / 12.0s</output>
-                </div>
-                <input id="waveScrubber" class="wave-scrubber" type="range" min="0" max="12" step="0.1" value="0" aria-label="拖动隐藏音频时间轴" />
               </div>
             </article>
           </div>
